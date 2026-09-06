@@ -12,7 +12,7 @@ const NAV = [
   ["Hábitos", "🔥"],
   ["Peso & Progresso", "⚖"],
   ["Trabalho & Tarefas", "✓"],
-  ["Insights", "◫"],
+  ["Meu Progresso", "◫"],
   ["Pessoas", "👥"],
   ["Desafios", "🏆"],
   ["Chats", "💬"]
@@ -22,8 +22,8 @@ const NAV = [
    UTILIDADES
 ========================= */
 
-function iso() {
-  return new Date().toISOString().slice(0, 10);
+function iso(date = new Date()) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
 function fmtDate(date = new Date()) {
@@ -86,7 +86,21 @@ function isLogged() {
 ========================= */
 
 async function api(action, data = {}) {
+  const token = localStorage.getItem("ml_token");
   const response = await API.call(action, data);
+  if (token !== localStorage.getItem("ml_token")) return { ok: false, stale: true };
+  if ((!response || !response.ok) && /^(save|delete|update|create|send|invite|accept|reject|cancel|leave)/.test(action)) {
+    let warning = document.querySelector("#saveWarning");
+    if (!warning) {
+      warning = document.createElement("div");
+      warning.id = "saveWarning";
+      warning.setAttribute("role", "alert");
+      warning.style.cssText = "padding:12px 16px;background:#fff3cd;color:#664d03;border:1px solid #ffecb5;border-radius:12px;margin:12px 0";
+      document.querySelector(".topbar").after(warning);
+    }
+    warning.textContent = "Não foi possível confirmar a alteração no servidor. Confira sua conexão e tente a ação novamente. Os dados exibidos podem estar apenas neste navegador.";
+    toast("Alteração não confirmada no servidor.");
+  }
 
   if (!response || !response.ok) {
     console.warn("API:", action, response);
@@ -97,6 +111,7 @@ async function api(action, data = {}) {
 
 async function syncFromServer() {
   if (!isLogged()) return;
+  const syncToken = localStorage.getItem("ml_token");
 
   try {
     const [
@@ -121,6 +136,7 @@ async function syncFromServer() {
       api("listWeeklyReviews")
     ]);
 
+    if (syncToken !== localStorage.getItem("ml_token")) return;
     const itemsOf = response => {
       if (Array.isArray(response)) return response;
       if (Array.isArray(response?.items)) return response.items;
@@ -180,6 +196,7 @@ async function syncFromServer() {
     // com backends antigos que ainda não possuem o módulo.
     try {
       const challengeResponse = await api("listChallenges");
+      if (syncToken !== localStorage.getItem("ml_token")) return;
       if (challengeResponse?.ok) {
         state.challenges = Array.isArray(challengeResponse.items)
           ? challengeResponse.items
@@ -206,7 +223,7 @@ function normalizeDate(value) {
     return value.slice(0, 10);
   }
 
-  return new Date(value).toISOString().slice(0, 10);
+  return iso(new Date(value));
 }
 
 /* =========================
@@ -222,14 +239,39 @@ async function boot() {
   renderUserBadge();
   renderNav();
 
+  show("Meu Dia");
   if (isLogged()) {
-    toast("Sincronizando dados...");
-    await syncFromServer();
-    await ensureGoalDailyItems();
+    const bootToken = localStorage.getItem("ml_token");
+    mlStartMessageNotifications();
+    const loading = document.createElement("p");
+    loading.className = "muted";
+    loading.textContent = "Atualizando seus dados…";
+    loading.setAttribute("role", "status");
+    document.querySelector(".topbar").after(loading);
+    $("#content").inert = true;
+    try {
+      await syncFromServer();
+      if (bootToken !== localStorage.getItem("ml_token")) return;
+      await ensureGoalDailyItems();
+      if (bootToken !== localStorage.getItem("ml_token")) return;
+      renderUserBadge();
+      if (currentPage !== "Chats") show(currentPage);
+    } finally {
+      loading.remove();
+      if (bootToken === localStorage.getItem("ml_token")) $("#content").inert = false;
+    }
   }
 
   renderUserBadge();
-  show("Meu Dia");
+  window.mlPwaAfterLogin?.();
+  let guide = document.querySelector("#dailyGuide");
+  if (!guide) {
+    guide = document.createElement("p");
+    guide.id = "dailyGuide";
+    guide.className = "muted";
+    guide.textContent = "Comece pelo Meu Dia: escolha suas prioridades e marque o que concluir. Use o menu para acompanhar metas, hábitos e progresso.";
+    document.querySelector(".topbar").after(guide);
+  }
 }
 
 function renderUserBadge() {
@@ -249,20 +291,53 @@ function renderUserBadge() {
 ========================= */
 
 function renderNav() {
-  $("#mainNav").innerHTML = NAV
-    .map(([name, icon]) => `
-      <button
-        class="nav-button ${name === currentPage ? "active" : ""}"
-        onclick="show('${name}')"
-      >
-        <span>${icon}</span>
-        ${name}
-      </button>
-    `)
-    .join("");
+  const button = name => {
+    const icon = NAV.find(item => item[0] === name)?.[1] || "◉";
+    return `<button type="button" data-nav-page="${name}" class="nav-button ${name === currentPage ? "active" : ""}"
+      ${name === currentPage ? 'aria-current="page"' : ''} onclick="show('${name}')"><span aria-hidden="true">${icon}</span>${name}</button>`;
+  };
+  const groups = [
+    ["Planejamento", ["Metas", "Hábitos", "Trabalho & Tarefas"]],
+    ["Saúde", ["Treino", "Dieta", "Peso & Progresso"]],
+    ["Comunidade", ["Pessoas", "Desafios", "Chats"]]
+  ];
+  const moreActive = groups.some(([, names]) => names.includes(currentPage));
+  $("#mainNav").innerHTML = `
+    <div class="nav-home">${button("Meu Dia")}</div>
+    <div class="nav-progress">${button("Meu Progresso")}</div>
+    <button type="button" class="nav-button nav-more ${moreActive ? "active" : ""}"
+      aria-expanded="false" aria-controls="navGroups" onclick="toggleMoreNav(this)"><span aria-hidden="true">☰</span>Mais</button>
+    <div id="navGroups" class="nav-groups">${groups.map(([label, names], index) => `
+      <section class="nav-group" aria-labelledby="navGroup${index}">
+        <h2 id="navGroup${index}" class="nav-group-label">${label}</h2>
+        ${names.map(button).join("")}
+      </section>`).join("")}</div>`;
+  mlUpdateChatUnreadBadge(Number(document.documentElement.dataset.chatUnread || 0));
 }
 
+function toggleMoreNav(button) {
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  button.setAttribute("aria-expanded", String(expanded));
+  $("#navGroups").classList.toggle("is-open", expanded);
+}
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    const button = document.querySelector('.nav-more[aria-expanded="true"]');
+    if (button) { toggleMoreNav(button); button.focus(); }
+  }
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest("#mainNav")) {
+    const button = document.querySelector('.nav-more[aria-expanded="true"]');
+    if (button) toggleMoreNav(button);
+  }
+});
+
 function show(page) {
+  if (currentPage === "Chats" && page !== "Chats" && typeof mlStopChatPolling === "function") {
+    mlStopChatPolling();
+  }
   currentPage = page;
 
   clearCharts();
@@ -279,7 +354,7 @@ function show(page) {
     "Hábitos": renderHabits,
     "Peso & Progresso": renderWeight,
     "Trabalho & Tarefas": renderTasks,
-    "Insights": renderInsights,
+    "Meu Progresso": renderInsights,
     "Pessoas": renderPeople,
     "Desafios": renderChallenges,
     "Chats": renderChats
@@ -3929,7 +4004,7 @@ async function deleteChallenge(id) {
 async function renderPeople() {
   $("#content").innerHTML = `
     <div class="card">
-      Carregando usuários...
+      Carregando pessoas e solicitações...
     </div>
   `;
 
@@ -3938,60 +4013,160 @@ async function renderPeople() {
     return;
   }
 
-  const response =
-    await api("listUsers");
+  try {
+    const [usersResponse, invitesResponse, friendsResponse] = await Promise.all([
+      api("listUsers"),
+      api("listInvites"),
+      api("listFriends")
+    ]);
 
-  if (!response?.ok) {
-    renderPeopleLocal();
-    return;
-  }
+    const users = usersResponse?.ok ? (usersResponse.users || []) : [];
+    const received = invitesResponse?.ok ? (invitesResponse.received || []) : [];
+    const sent = invitesResponse?.ok ? (invitesResponse.sent || []) : [];
+    const friends = friendsResponse?.ok ? (friendsResponse.friends || []) : [];
 
-  const users = response.users || [];
+    // Mantém a lista local sincronizada para Chats e Desafios.
+    if (friendsResponse?.ok) {
+      state.friends = friends.map(friend => ({
+        ...friend,
+        status: "friend"
+      }));
+      saveLocal();
+    }
 
-  $("#content").innerHTML = `
-    <div class="section-head">
-      <h2>Pessoas</h2>
-    </div>
+    const friendIds = new Set(friends.map(friend => String(friend.id || friend.user_id)));
+    const sentIds = new Set(sent.map(invite => String(invite.user_id)));
+    const receivedIds = new Set(received.map(invite => String(invite.user_id)));
 
-    <div class="card">
+    const fmtInviteDate = value => {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    };
 
-      ${
-        users.length
-          ? users
-              .map(
-                user => `
+    $("#content").innerHTML = `
+      <div class="section-head">
+        <div>
+          <h2>Pessoas</h2>
+          <div class="muted">Gerencie amizades, solicitações e pessoas do MetaLife.</div>
+        </div>
+        ${received.length ? `<span class="pill">${received.length} pendente${received.length > 1 ? "s" : ""}</span>` : ""}
+      </div>
 
-                  <div class="profile-row">
+      ${received.length ? `
+        <div class="section-head" style="margin-top:8px">
+          <div>
+            <h2 style="font-size:18px">Solicitações recebidas</h2>
+            <div class="muted">Pessoas que querem adicionar você.</div>
+          </div>
+        </div>
 
-                    <div class="avatar">
-                      ${user.name?.slice(0, 1) || "U"}
-                    </div>
-
-                    <div style="flex:1">
-                      <b>${user.name}</b>
-                    </div>
-
-                    <button
-                      class="chip-btn good"
-                      onclick="inviteServer('${user.id}')"
-                    >
-                      Convidar
-                    </button>
-
-                  </div>
-
-                `
-              )
-              .join("")
-          : `
-              <div class="muted">
-                Nenhum outro usuário cadastrado.
+        <div class="card" style="margin-bottom:16px">
+          ${received.map(invite => `
+            <div class="profile-row">
+              <div class="avatar">${escapeHtml((invite.name || "U").slice(0, 1))}</div>
+              <div style="flex:1">
+                <b>${escapeHtml(invite.name || "Usuário")}</b>
+                <div class="muted">
+                  Quer adicionar você${fmtInviteDate(invite.created_at) ? ` · ${fmtInviteDate(invite.created_at)}` : ""}
+                </div>
               </div>
-            `
-      }
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="chip-btn good" onclick="acceptFriendInvite('${invite.id}')">✓ Aceitar</button>
+                <button class="chip-btn danger" onclick="rejectFriendInvite('${invite.id}')">✕ Recusar</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
 
-    </div>
-  `;
+      <div class="section-head">
+        <div>
+          <h2 style="font-size:18px">Meus amigos</h2>
+          <div class="muted">Amigos disponíveis para conversar e participar de desafios.</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        ${friends.length ? friends.map(friend => `
+          <div class="profile-row">
+            <div class="avatar">${escapeHtml((friend.name || "U").slice(0, 1))}</div>
+            <div style="flex:1">
+              <b>${escapeHtml(friend.name || "Amigo")}</b>
+              <div class="muted">Nível ${Number(friend.level || 1)} · ${Number(friend.xp || 0)} XP · 🔥 ${Number(friend.streak || 0)} dias</div>
+            </div>
+            <button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>
+          </div>
+        `).join("") : `<div class="muted">Você ainda não adicionou nenhum amigo.</div>`}
+      </div>
+
+      ${sent.length ? `
+        <div class="section-head">
+          <div>
+            <h2 style="font-size:18px">Solicitações enviadas</h2>
+            <div class="muted">Convites aguardando resposta.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          ${sent.map(invite => `
+            <div class="profile-row">
+              <div class="avatar">${escapeHtml((invite.name || "U").slice(0, 1))}</div>
+              <div style="flex:1">
+                <b>${escapeHtml(invite.name || "Usuário")}</b>
+                <div class="muted">Aguardando resposta${fmtInviteDate(invite.created_at) ? ` · ${fmtInviteDate(invite.created_at)}` : ""}</div>
+              </div>
+              <button class="chip-btn danger" onclick="cancelFriendInvite('${invite.id}')">Cancelar</button>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+
+      <div class="section-head">
+        <div>
+          <h2 style="font-size:18px">Encontrar pessoas</h2>
+          <div class="muted">Usuários cadastrados no MetaLife.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        ${users.length ? users.map(user => {
+          const id = String(user.id);
+          let action = "";
+
+          if (friendIds.has(id)) {
+            action = `<span class="pill">Amigo</span>`;
+          } else if (sentIds.has(id)) {
+            action = `<span class="pill">Enviado</span>`;
+          } else if (receivedIds.has(id)) {
+            action = `<span class="pill">Responda acima</span>`;
+          } else {
+            action = `<button class="chip-btn good" onclick="inviteServer('${user.id}')">Convidar</button>`;
+          }
+
+          return `
+            <div class="profile-row">
+              <div class="avatar">${escapeHtml((user.name || "U").slice(0, 1))}</div>
+              <div style="flex:1">
+                <b>${escapeHtml(user.name || "Usuário")}</b>
+                <div class="muted">Nível ${Number(user.level || 1)} · ${Number(user.xp || 0)} XP</div>
+              </div>
+              ${action}
+            </div>
+          `;
+        }).join("") : `<div class="muted">Nenhum outro usuário cadastrado.</div>`}
+      </div>
+    `;
+  } catch (error) {
+    console.error(error);
+    toast("Não foi possível carregar as solicitações.");
+    renderPeopleLocal();
+  }
 }
 
 function renderPeopleLocal() {
@@ -4001,224 +4176,701 @@ function renderPeopleLocal() {
     </div>
 
     <div class="card">
-
-      ${
-        (state.friends || [])
-          .map(
-            friend => `
-
-              <div class="profile-row">
-
-                <div class="avatar">
-                  ${friend.name.slice(0, 1)}
-                </div>
-
-                <div style="flex:1">
-
-                  <b>
-                    ${friend.name}
-                  </b>
-
-                  <div class="muted">
-                    🔥 ${friend.streak || 0}
-                    dias de sequência
-                  </div>
-
-                </div>
-
-                ${
-                  friend.status ===
-                  "friend"
-                    ? `
-                      <button
-                        class="chip-btn"
-                        onclick="openChat('${friend.id}')"
-                      >
-                        Conversar
-                      </button>
-                    `
-                    : `
-                      <button
-                        class="chip-btn good"
-                        onclick="invite('${friend.id}')"
-                      >
-                        Convidar
-                      </button>
-                    `
-                }
-
+      ${(state.friends || []).length
+        ? (state.friends || []).map(friend => `
+            <div class="profile-row">
+              <div class="avatar">${escapeHtml((friend.name || "U").slice(0, 1))}</div>
+              <div style="flex:1">
+                <b>${escapeHtml(friend.name || "Amigo")}</b>
+                <div class="muted">🔥 ${Number(friend.streak || 0)} dias de sequência</div>
               </div>
-
-            `
-          )
-          .join("")
-      }
-
+              ${friend.status === "friend"
+                ? `<button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>`
+                : `<button class="chip-btn good" onclick="invite('${friend.id}')">Convidar</button>`}
+            </div>
+          `).join("")
+        : `<div class="muted">Entre na sua conta para gerenciar solicitações de amizade.</div>`}
     </div>
   `;
 }
 
 async function inviteServer(userId) {
-  const response =
-    await api(
-      "inviteUser",
-      {
-        para_user: userId
-      }
-    );
+  const response = await api("inviteUser", {
+    para_user: userId
+  });
 
   if (response?.ok) {
     toast("Convite enviado.");
+    await renderPeople();
   } else {
-    toast(
-      response?.error ||
-      "Não foi possível enviar."
-    );
+    toast(response?.error || "Não foi possível enviar.");
   }
 }
 
-function invite(id) {
-  const friend =
-    state.friends.find(
-      item => item.id === id
-    );
+async function acceptFriendInvite(inviteId) {
+  const response = await api("acceptInvite", {
+    invite_id: inviteId
+  });
 
+  if (!response?.ok) {
+    toast(response?.error || "Não foi possível aceitar o convite.");
+    return;
+  }
+
+  toast("Solicitação aceita. Agora vocês são amigos.");
+  await renderPeople();
+}
+
+async function rejectFriendInvite(inviteId) {
+  const response = await api("rejectInvite", {
+    invite_id: inviteId
+  });
+
+  if (!response?.ok) {
+    toast(response?.error || "Não foi possível recusar o convite.");
+    return;
+  }
+
+  toast("Solicitação recusada.");
+  await renderPeople();
+}
+
+async function cancelFriendInvite(inviteId) {
+  if (!confirm("Cancelar esta solicitação de amizade?")) return;
+
+  const response = await api("cancelInvite", {
+    invite_id: inviteId
+  });
+
+  if (!response?.ok) {
+    toast(response?.error || "Não foi possível cancelar o convite.");
+    return;
+  }
+
+  toast("Solicitação cancelada.");
+  await renderPeople();
+}
+
+function invite(id) {
+  const friend = (state.friends || []).find(item => item.id === id);
   if (!friend) return;
 
-  friend.status =
-    "invited";
-
+  friend.status = "invited";
   saveLocal();
-
   toast("Convite enviado.");
 }
 
 /* =========================
-   CHAT LOCAL
+   CHAT — SINCRONIZADO COM O SERVIDOR
 ========================= */
 
-function renderChats() {
-  const friend =
-    (state.friends || []).find(
-      item =>
-        item.status === "friend"
-    );
+const mlChatState = {
+  conversations: [],
+  activeId: null,
+  messages: [],
+  pollTimer: null,
+  loadingMessages: false,
+  notificationTimer: null,
+  notificationReady: false,
+  unreadSnapshot: {},
+  audioContext: null,
+  lastNotificationAt: {}
+};
 
-  if (!friend) {
-    $("#content").innerHTML = `
-      <div class="card">
-        Nenhuma conversa disponível.
-      </div>
-    `;
+function mlStopChatPolling() {
+  if (mlChatState.pollTimer) {
+    clearInterval(mlChatState.pollTimer);
+    mlChatState.pollTimer = null;
+  }
+}
 
-    return;
+function mlChatTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function mlChatDay(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  if (sameDay) return "Hoje";
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
+}
+
+function mlMyUserId() {
+  return String(
+    state.user?.id ||
+    state.user?.user_id ||
+    state.profile?.id ||
+    state.profile?.user_id ||
+    localStorage.getItem("ml_user_id") ||
+    ""
+  );
+}
+
+/* =========================================================
+   NOTIFICAÇÕES DO CHAT
+========================================================= */
+
+function mlEnableNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!mlChatState.audioContext) {
+      mlChatState.audioContext = new AudioContextClass();
+    }
+
+    if (mlChatState.audioContext.state === "suspended") {
+      mlChatState.audioContext.resume().catch(() => {});
+    }
+  } catch (error) {
+    console.warn("Áudio de notificação indisponível.", error);
+  }
+}
+
+function mlPlayNotificationSound() {
+  try {
+    mlEnableNotificationSound();
+    const ctx = mlChatState.audioContext;
+    if (!ctx || ctx.state !== "running") return;
+
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+
+    [880, 1174].forEach((frequency, index) => {
+      const oscillator = ctx.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+      oscillator.connect(gain);
+      const start = ctx.currentTime + index * 0.11;
+      oscillator.start(start);
+      oscillator.stop(start + 0.16);
+    });
+  } catch (error) {
+    console.warn("Não foi possível tocar a notificação.", error);
+  }
+}
+
+async function mlRequestNotificationPermission() {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+
+  try {
+    const permission = await Notification.requestPermission();
+    return permission === "granted";
+  } catch (error) {
+    console.warn("Permissão de notificação não concedida.", error);
+    return false;
+  }
+}
+
+function mlDesktopNotification(conversation, text) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+  try {
+    const notification = new Notification(conversation?.name || "MetaLife", {
+      body: text || "Você recebeu uma nova mensagem.",
+      tag: `metalife-chat-${conversation?.id || "message"}`,
+      renotify: true
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      show("Chats");
+      setTimeout(() => selectChatConversation(String(conversation.id)), 150);
+      notification.close();
+    };
+  } catch (error) {
+    console.warn("Notificação do navegador indisponível.", error);
+  }
+}
+
+function mlChatNotificationToast(conversation, text, unreadCount = 1) {
+  let host = document.getElementById("mlMessageNotifications");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "mlMessageNotifications";
+    host.className = "ml-message-notifications";
+    document.body.appendChild(host);
   }
 
-  renderChat(friend.id);
-}
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "ml-message-notification";
+  item.setAttribute("aria-live", "polite");
+  item.innerHTML = `
+    <div class="ml-message-notification-avatar">${mlChatAvatar(conversation?.name)}</div>
+    <div class="ml-message-notification-copy">
+      <div class="ml-message-notification-label">Nova mensagem${unreadCount > 1 ? ` · ${unreadCount} não lidas` : ""}</div>
+      <strong>${escapeHtml(conversation?.name || "Amigo")}</strong>
+      <span>${escapeHtml(text || "Enviou uma mensagem.")}</span>
+    </div>
+    <div class="ml-message-notification-dot"></div>
+  `;
 
-function openChat(id) {
-  show("Chats");
+  item.onclick = () => {
+    show("Chats");
+    setTimeout(() => selectChatConversation(String(conversation.id)), 120);
+    item.remove();
+  };
+
+  host.appendChild(item);
+  requestAnimationFrame(() => item.classList.add("show"));
 
   setTimeout(() => {
-    renderChat(id);
-  }, 0);
+    item.classList.remove("show");
+    setTimeout(() => item.remove(), 250);
+  }, 6500);
 }
 
-function renderChat(id) {
-  const friend =
-    (state.friends || []).find(
-      item => item.id === id
-    );
+function mlNotifyNewMessage(conversation, text, unreadCount = 1) {
+  if (!conversation) return;
 
-  const messages =
-    state.chats?.[id] || [];
+  const conversationId = String(conversation.id || "");
+  const nowMs = Date.now();
+  const lastAt = Number(mlChatState.lastNotificationAt[conversationId] || 0);
+  if (nowMs - lastAt < 800) return;
+  mlChatState.lastNotificationAt[conversationId] = nowMs;
 
-  $("#content").innerHTML = `
-    <div class="card">
+  mlPlayNotificationSound();
+  mlChatNotificationToast(conversation, text, unreadCount);
 
-      <h3>
-        ${friend?.name || "Conversa"}
-      </h3>
+  // Aviso interno: não depende de permissão de notificação do navegador.
+}
 
-      <div class="message-list">
+let mlNotificationRequest = null;
+async function mlCheckChatNotifications(firstCheck = false) {
+  if (!isLogged() || mlNotificationRequest) return;
+  const request = {};
+  mlNotificationRequest = request;
 
-        ${
-          messages
-            .map(
-              message => `
+  try {
+    const response = await api("listConversations");
+    if (!response?.ok) return;
 
-                <div
-                  class="msg ${
-                    message.mine
-                      ? "mine"
-                      : ""
-                  }"
-                >
-                  ${message.text}
+    const conversations = Array.isArray(response.conversations) ? response.conversations : [];
+    if (conversations.some(item => item.unread_count === undefined)) {
+      if (!mlChatState.warnedUnreadSupport) {
+        toast("Atualize a implantação do Apps Script para habilitar os avisos de mensagens não lidas.");
+        mlChatState.warnedUnreadSupport = true;
+      }
+      return;
+    }
+    mlChatState.conversations = conversations;
+    if (currentPage === "Chats") renderChatConversationList();
+    let totalUnread = 0;
 
-                  <div
-                    class="muted"
-                    style="font-size:11px"
-                  >
-                    ${message.time}
-                  </div>
+    for (const conversation of conversations) {
+      const id = String(conversation.id);
+      const unread = Number(conversation.unread_count || 0);
+      const previous = Number(mlChatState.unreadSnapshot[id] || 0);
+      totalUnread += unread;
 
-                </div>
+      const activeVisible =
+        currentPage === "Chats" &&
+        String(mlChatState.activeId || "") === id &&
+        !document.hidden;
 
-              `
-            )
-            .join("")
+      if (!activeVisible) {
+        if ((firstCheck || !mlChatState.notificationReady) && unread > 0) {
+          mlNotifyNewMessage(
+            conversation,
+            conversation.last_message || "Você tem uma mensagem não lida.",
+            unread
+          );
+        } else if (mlChatState.notificationReady && unread > previous) {
+          mlNotifyNewMessage(
+            conversation,
+            conversation.last_message || "Enviou uma nova mensagem.",
+            unread
+          );
         }
+      }
 
-      </div>
+      mlChatState.unreadSnapshot[id] = unread;
+    }
 
-      <div class="chat-compose">
+    Object.keys(mlChatState.unreadSnapshot).forEach(id => {
+      if (!conversations.some(c => String(c.id) === id)) {
+        delete mlChatState.unreadSnapshot[id];
+      }
+    });
 
-        <input
-          id="chatText"
-          placeholder="Digite uma mensagem..."
-        >
+    mlChatState.notificationReady = true;
+    mlUpdateChatUnreadBadge(totalUnread);
+  } catch (error) {
+    console.warn("Erro ao verificar novas mensagens.", error);
+  } finally {
+    if (mlNotificationRequest === request) mlNotificationRequest = null;
+  }
+}
 
-        <button
-          class="primary"
-          onclick="sendMsg('${id}')"
-        >
-          Enviar
-        </button>
+function mlUpdateChatUnreadBadge(totalUnread) {
+  totalUnread = Math.max(0, Number(totalUnread) || 0);
+  document.documentElement.dataset.chatUnread = String(totalUnread);
+  const count = totalUnread > 99 ? "99+" : String(totalUnread);
+  document.querySelectorAll('[data-nav-page="Chats"], .nav-more').forEach(button => {
+    let badge = button.querySelector(".ml-chat-nav-badge");
+    if (totalUnread > 0) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "ml-chat-nav-badge";
+        button.appendChild(badge);
+      }
+      badge.textContent = count;
+      badge.setAttribute("aria-label", count + " mensagens não lidas");
+    } else if (badge) badge.remove();
+  });
+  let banner = document.getElementById("mlUnreadBanner");
+  if (!banner && totalUnread > 0) {
+    banner = document.createElement("button");
+    banner.id = "mlUnreadBanner";
+    banner.type = "button";
+    banner.className = "ml-unread-banner";
+    banner.setAttribute("aria-live", "polite");
+    banner.onclick = () => show("Chats");
+    document.querySelector(".topbar").after(banner);
+  }
+  if (banner) {
+    banner.hidden = totalUnread === 0;
+    const text = totalUnread === 1 ? "Você tem 1 mensagem não lida no chat. Toque para abrir." : "Você tem " + count + " mensagens não lidas no chat. Toque para abrir.";
+    if (banner.textContent !== text) banner.textContent = text;
+  }
+  document.title = totalUnread > 0 ? "(" + count + ") MetaLife" : "MetaLife";
+}
 
-      </div>
+function mlStartMessageNotifications() {
+  mlStopMessageNotifications();
+  mlChatState.notificationReady = false;
+  mlChatState.unreadSnapshot = {};
 
+  mlCheckChatNotifications(true);
+  mlChatState.notificationTimer = setInterval(() => {
+    if (isLogged() && !document.hidden) mlCheckChatNotifications(false);
+  }, 7000);
+}
+
+function mlStopMessageNotifications() {
+  mlNotificationRequest = null;
+  mlUpdateChatUnreadBadge(0);
+  document.getElementById("mlMessageNotifications")?.replaceChildren();
+  if (mlChatState.notificationTimer) {
+    clearInterval(mlChatState.notificationTimer);
+    mlChatState.notificationTimer = null;
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && isLogged()) mlCheckChatNotifications(false);
+});
+
+function mlArmBrowserNotifications() {
+  mlEnableNotificationSound();
+  // O aviso interno não solicita permissão do sistema operacional.
+}
+
+document.addEventListener("pointerdown", mlEnableNotificationSound, { once: true });
+document.addEventListener("keydown", mlEnableNotificationSound, { once: true });
+
+function mlChatAvatar(name) {
+  const parts = String(name || "U").trim().split(/\s+/).filter(Boolean);
+  return escapeHtml((parts[0]?.[0] || "U") + (parts[1]?.[0] || ""));
+}
+
+function mlRenderChatShell() {
+  $("#content").innerHTML = `
+    <div class="chat-app">
+      <aside class="chat-sidebar-panel">
+        <div class="chat-sidebar-head">
+          <div>
+            <h2>Conversas</h2>
+            <div class="muted">Mensagens com seus amigos</div>
+          </div>
+          <button class="chat-icon-button" title="Atualizar" onclick="loadChatConversations(true)">↻</button>
+        </div>
+        <div id="chatConversationList" class="chat-conversation-list">
+          <div class="chat-empty-small">Carregando conversas...</div>
+        </div>
+      </aside>
+
+      <section id="chatMainPanel" class="chat-main-panel">
+        <div class="chat-empty-state">
+          <div class="chat-empty-icon">💬</div>
+          <h3>Suas conversas</h3>
+          <p>Escolha um amigo para começar a conversar.</p>
+        </div>
+      </section>
     </div>
   `;
 }
 
-function sendMsg(id) {
-  const text =
-    $("#chatText")
-      .value
-      .trim();
+async function renderChats() {
+  mlStopChatPolling();
+  mlRenderChatShell();
 
-  if (!text) return;
+  if (!isLogged()) {
+    $("#chatConversationList").innerHTML = `<div class="chat-empty-small">Entre na sua conta para usar o chat.</div>`;
+    return;
+  }
 
-  state.chats ||= {};
-  state.chats[id] ||= [];
+  await loadChatConversations(false);
 
-  state.chats[id].push({
-    mine: true,
-    text,
-    time:
-      new Date().toLocaleTimeString(
-        "pt-BR",
-        {
-          hour: "2-digit",
-          minute: "2-digit"
-        }
-      )
+  const pendingUser = window.mlPendingChatUser;
+  if (pendingUser) {
+    window.mlPendingChatUser = null;
+    let conversation = mlChatState.conversations.find(c => String(c.user_id) === String(pendingUser));
+
+    if (!conversation) {
+      const created = await api("createConversation", { other_user: pendingUser });
+      if (!created?.ok) {
+        toast(created?.error || "Não foi possível abrir a conversa.");
+        return;
+      }
+      await loadChatConversations(false);
+      conversation = mlChatState.conversations.find(c => String(c.id) === String(created.conversation_id))
+        || mlChatState.conversations.find(c => String(c.user_id) === String(pendingUser));
+    }
+
+    if (conversation) await selectChatConversation(conversation.id);
+    return;
+  }
+
+  if (mlChatState.activeId && mlChatState.conversations.some(c => String(c.id) === String(mlChatState.activeId))) {
+    await selectChatConversation(mlChatState.activeId);
+  }
+}
+
+async function loadChatConversations(keepActive = true) {
+  const response = await api("listConversations");
+  if (!response?.ok) {
+    const host = $("#chatConversationList");
+    if (host) host.innerHTML = `<div class="chat-empty-small">Não foi possível carregar as conversas.</div>`;
+    return [];
+  }
+
+  mlChatState.conversations = Array.isArray(response.conversations) ? response.conversations : [];
+  mlChatState.conversations.sort((a, b) => {
+    const ad = new Date(a.last_at || a.created_at || 0).getTime() || 0;
+    const bd = new Date(b.last_at || b.created_at || 0).getTime() || 0;
+    return bd - ad;
   });
 
-  saveLocal();
-  renderChat(id);
+  if (!keepActive && !mlChatState.conversations.some(c => String(c.id) === String(mlChatState.activeId))) {
+    mlChatState.activeId = null;
+  }
+
+  renderChatConversationList();
+  return mlChatState.conversations;
+}
+
+function renderChatConversationList() {
+  const host = $("#chatConversationList");
+  if (!host) return;
+
+  if (!mlChatState.conversations.length) {
+    host.innerHTML = `
+      <div class="chat-empty-small">
+        Nenhuma conversa ainda.<br>
+        Vá em <b>Pessoas</b> e clique em <b>Conversar</b> ao lado de um amigo.
+      </div>`;
+    return;
+  }
+
+  host.innerHTML = mlChatState.conversations.map(conversation => {
+    const active = String(conversation.id) === String(mlChatState.activeId);
+    const unread = Number(conversation.unread_count || 0);
+    return `
+      <button class="chat-conversation-item ${active ? "active" : ""}" onclick="selectChatConversation('${conversation.id}')">
+        <div class="chat-avatar">${mlChatAvatar(conversation.name)}</div>
+        <div class="chat-conversation-copy">
+          <div class="chat-conversation-topline">
+            <b>${escapeHtml(conversation.name || "Usuário")}</b>
+            <span>${mlChatTime(conversation.last_at || conversation.created_at)}</span>
+          </div>
+          <div class="chat-conversation-preview">
+            <span>${escapeHtml(conversation.last_message || "Conversa iniciada")}</span>
+            ${unread ? `<strong class="chat-unread">${unread > 99 ? "99+" : unread}</strong>` : ""}
+          </div>
+        </div>
+      </button>`;
+  }).join("");
+}
+
+function openChat(friendId) {
+  window.mlPendingChatUser = String(friendId);
+  show("Chats");
+}
+
+async function selectChatConversation(conversationId) {
+  mlChatState.activeId = String(conversationId);
+  renderChatConversationList();
+
+  const conversation = mlChatState.conversations.find(c => String(c.id) === String(conversationId));
+  const panel = $("#chatMainPanel");
+  if (!conversation || !panel) return;
+
+  panel.innerHTML = `
+    <div class="chat-header-modern">
+      <div class="chat-avatar large">${mlChatAvatar(conversation.name)}</div>
+      <div>
+        <h3>${escapeHtml(conversation.name || "Usuário")}</h3>
+        <div class="chat-presence"><span></span> Amigo no MetaLife</div>
+      </div>
+    </div>
+    <div id="chatMessages" class="chat-messages-modern">
+      <div class="chat-loading">Carregando mensagens...</div>
+    </div>
+    <div class="chat-composer-modern">
+      <textarea id="chatText" rows="1" maxlength="3000" placeholder="Escreva uma mensagem..."></textarea>
+      <button id="chatSendButton" class="chat-send-button" onclick="sendMsg()" title="Enviar mensagem">➤</button>
+    </div>`;
+
+  const input = $("#chatText");
+  if (input) {
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMsg();
+      }
+    });
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    });
+    input.focus();
+  }
+
+  await loadChatMessages(true);
+  mlStartChatPolling();
+}
+
+function mlStartChatPolling() {
+  mlStopChatPolling();
+  let polling = false;
+  mlChatState.pollTimer = setInterval(async () => {
+    if (currentPage !== "Chats" || !mlChatState.activeId) {
+      mlStopChatPolling();
+      return;
+    }
+    if (document.hidden || polling) return;
+    polling = true;
+    try {
+      await loadChatMessages(false);
+    } finally { polling = false; }
+  }, 3500);
+}
+
+async function loadChatMessages(scrollToBottom = false) {
+  if (document.hidden || currentPage !== "Chats" || !mlChatState.activeId || mlChatState.loadingMessages) return;
+  mlChatState.loadingMessages = true;
+  const conversationId = String(mlChatState.activeId);
+  const previousIds = new Set(mlChatState.messages.map(message => String(message.id)));
+  try {
+    const response = await api("listMessages", { conversa_id: conversationId });
+    if (String(mlChatState.activeId) !== conversationId || currentPage !== "Chats") return;
+    if (!response?.ok) {
+      const host = $("#chatMessages");
+      if (host) host.innerHTML = `<div class="chat-loading">Não foi possível carregar as mensagens.</div>`;
+      return;
+    }
+
+    const nextMessages = Array.isArray(response.messages) ? response.messages : [];
+    const incoming = nextMessages.filter(message => String(message.user_id) !== mlMyUserId() && !previousIds.has(String(message.id)));
+    if (!scrollToBottom && incoming.length) {
+      const conversation = mlChatState.conversations.find(item => String(item.id) === conversationId);
+      mlNotifyNewMessage(conversation, incoming.at(-1).text, incoming.length);
+    }
+    if (mlChatState.activeId) {
+      mlChatState.unreadSnapshot[String(mlChatState.activeId)] = 0;
+      const conversation = mlChatState.conversations.find(item => String(item.id) === conversationId);
+      if (conversation) conversation.unread_count = 0;
+      mlUpdateChatUnreadBadge(mlChatState.conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0));
+    }
+    const changed = JSON.stringify(nextMessages.map(m => [m.id, m.read])) !== JSON.stringify(mlChatState.messages.map(m => [m.id, m.read]));
+    mlChatState.messages = nextMessages;
+    if (changed || scrollToBottom) renderChatMessages(scrollToBottom);
+  } finally {
+    mlChatState.loadingMessages = false;
+  }
+}
+
+function renderChatMessages(forceBottom = false) {
+  const host = $("#chatMessages");
+  if (!host) return;
+  const wasNearBottom = host.scrollHeight - host.scrollTop - host.clientHeight < 100;
+  const myId = mlMyUserId();
+
+  if (!mlChatState.messages.length) {
+    host.innerHTML = `
+      <div class="chat-first-message">
+        <div class="chat-empty-icon">👋</div>
+        <b>Comece a conversa</b>
+        <span>Envie a primeira mensagem para seu amigo.</span>
+      </div>`;
+    return;
+  }
+
+  let lastDay = "";
+  host.innerHTML = mlChatState.messages.map(message => {
+    const day = mlChatDay(message.created_at);
+    const divider = day !== lastDay ? `<div class="chat-day-divider"><span>${day}</span></div>` : "";
+    lastDay = day;
+    const mine = String(message.user_id) === myId;
+    return `${divider}
+      <div class="chat-message-row ${mine ? "mine" : "theirs"}">
+        <div class="chat-bubble ${mine ? "mine" : "theirs"}">
+          <div class="chat-message-text">${escapeHtml(message.text || "").replace(/\n/g, "<br>")}</div>
+          <div class="chat-message-meta">
+            <span>${mlChatTime(message.created_at)}</span>
+            ${mine ? `<span class="chat-check ${message.read ? "read" : ""}">${message.read ? "✓✓" : "✓"}</span>` : ""}
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  if (forceBottom || wasNearBottom) host.scrollTop = host.scrollHeight;
+}
+
+async function sendMsg() {
+  const input = $("#chatText");
+  const button = $("#chatSendButton");
+  const text = input?.value?.trim();
+  if (!text || !mlChatState.activeId) return;
+
+  input.disabled = true;
+  if (button) button.disabled = true;
+
+  const response = await api("sendMessage", {
+    conversa_id: mlChatState.activeId,
+    texto: text
+  });
+
+  input.disabled = false;
+  if (button) button.disabled = false;
+
+  if (!response?.ok) {
+    toast(response?.error || "Não foi possível enviar a mensagem.");
+    input.focus();
+    return;
+  }
+
+  input.value = "";
+  input.style.height = "auto";
+  await loadChatMessages(true);
+  await loadChatConversations(true);
+  input.focus();
 }
 
 /* =========================
@@ -4262,11 +4914,24 @@ $("#quickAddBtn").onclick =
 ========================= */
 
 $("#logoutBtn").onclick =
-  () => {
+  async () => {
+    try { await window.mlPwaDisconnect?.(); } catch (_) { toast("Não foi possível cancelar as notificações. Tente sair novamente com internet."); return; }
+    window.mlPwaClear?.();
+    mlStopMessageNotifications();
+    mlStopChatPolling();
+    localStorage.removeItem("ml_user_id");
     localStorage.removeItem(
       "ml_token"
     );
 
+    state = Store.defaults();
+    clearCharts();
+    $("#content").replaceChildren();
+    $("#userBadge").replaceChildren();
+    $("#modalBody").replaceChildren();
+    $("#modalBackdrop").classList.add("hidden");
+    document.querySelector("#saveWarning")?.remove();
+    $("#loginPassword").value = "";
     $("#app")
       .classList.add("hidden");
 
@@ -4321,7 +4986,12 @@ document
 ========================= */
 
 $("#demoBtn").onclick =
-  () => {
+  async () => {
+    try { await window.mlPwaDisconnect?.(); } catch (_) { toast("Conecte-se para encerrar as notificações antes da demonstração."); return; }
+    window.mlPwaClear?.();
+    mlStopMessageNotifications();
+    mlStopChatPolling();
+    localStorage.removeItem("ml_user_id");
     localStorage.removeItem(
       "ml_token"
     );
@@ -4338,6 +5008,7 @@ $("#demoBtn").onclick =
 $("#loginForm").onsubmit =
   async event => {
     event.preventDefault();
+    mlArmBrowserNotifications();
 
     const response =
       await api(
@@ -4360,6 +5031,17 @@ $("#loginForm").onsubmit =
       state.user =
         response.user;
 
+      const loggedUserId =
+        response.user_id ||
+        response.user?.id ||
+        response.user?.user_id;
+
+      if (loggedUserId) {
+        localStorage.setItem("ml_user_id", String(loggedUserId));
+      }
+
+      state = Store.load();
+      state.user = response.user;
       saveLocal();
 
       toast("Login realizado.");
