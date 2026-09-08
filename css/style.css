@@ -202,3 +202,5 @@
   .chat-composer-modern textarea{min-width:0;width:0;font-size:16px;max-height:100px;border-radius:22px}
   .chat-send-button{flex:0 0 44px;width:44px;height:44px;border-radius:50%}
 }
+
+.sync-status{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px;margin:10px 0;border:1px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#3730a3;font-size:13px}.sync-status[hidden]{display:none}

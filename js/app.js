@@ -60,6 +60,9 @@ function saveLocal() {
 }
 
 function toast(message) {
+  if (isLogged() && window.Sync?.hasPending() && /salv[oa]|atualizad[oa]|criad[oa]|excluíd[oa]|removid[oa]/i.test(message) && !/não|falha|erro|pendente/i.test(message)) {
+    message = 'Alteração guardada neste navegador. Há envios pendentes ao servidor.';
+  }
   const element = document.createElement("div");
 
   element.className = "toast-item";
@@ -87,7 +90,7 @@ function isLogged() {
 
 async function api(action, data = {}) {
   const token = localStorage.getItem("ml_token");
-  const response = await API.call(action, data);
+  const response = await (window.Sync?.supports(action) && isLogged() ? Sync.save(action, data) : API.call(action, data));
   if (token !== localStorage.getItem("ml_token")) return { ok: false, stale: true };
   if ((!response || !response.ok) && /^(save|delete|update|create|send|invite|accept|reject|cancel|leave)/.test(action)) {
     let warning = document.querySelector("#saveWarning");
@@ -109,9 +112,24 @@ async function api(action, data = {}) {
   return response;
 }
 
+const mlDashboardActions = ['listDaily','listGoals','listWeight','listTasks','listWorkouts','listDiet','listHabits','listCheckins','listWeeklyReviews'];
+async function mlReadDashboard() {
+  const legacyKey = 'ml_dashboard_legacy_' + CONFIG.API_URL;
+  if (!sessionStorage.getItem(legacyKey)) {
+    const result = await api('getDashboard');
+    if (result?.ok && result.sections) return mlDashboardActions.map(action => result.sections[action] || {ok:false});
+    if (result?.error !== 'Ação inválida') return mlDashboardActions.map(() => ({ok:false}));
+    sessionStorage.setItem(legacyKey, '1');
+  }
+  return Promise.all(mlDashboardActions.map(action => api(action)));
+}
+
 async function syncFromServer() {
   if (!isLogged()) return;
   const syncToken = localStorage.getItem("ml_token");
+  await window.Sync?.flush();
+  if (syncToken !== localStorage.getItem("ml_token")) return;
+  if (window.Sync?.hasPending()) { Sync.render(); return; }
 
   try {
     const [
@@ -124,19 +142,12 @@ async function syncFromServer() {
       habitResponse,
       checkinResponse,
       reviewResponse
-    ] = await Promise.all([
-      api("listDaily"),
-      api("listGoals"),
-      api("listWeight"),
-      api("listTasks"),
-      api("listWorkouts"),
-      api("listDiet"),
-      api("listHabits"),
-      api("listCheckins"),
-      api("listWeeklyReviews")
-    ]);
+    ] = await mlReadDashboard();
+
+
 
     if (syncToken !== localStorage.getItem("ml_token")) return;
+    if ([dailyResponse,goalResponse,weightResponse,taskResponse,workoutResponse,dietResponse,habitResponse,checkinResponse,reviewResponse].some(result=>!result?.ok)) toast('Alguns dados não puderam ser atualizados. Exibindo os dados disponíveis neste navegador.');
     const itemsOf = response => {
       if (Array.isArray(response)) return response;
       if (Array.isArray(response?.items)) return response.items;
