@@ -163,3 +163,7 @@
 .ml-unread-banner:hover { background:#e0e7ff; }
 .ml-unread-banner:focus-visible { outline:2px solid #6366f1; outline-offset:2px; }
 @media(max-width:760px) { .nav-more { position:relative; } .nav-more .ml-chat-nav-badge { position:absolute; right:8px; top:2px; } }
+
+/* Saída de conta acessível no menu móvel */
+.nav-mobile-account { display:none; }
+@media(max-width:760px) { .nav-mobile-account { display:block; border-top:1px solid #334155; padding-top:10px; margin-top:4px; } }

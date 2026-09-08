@@ -311,7 +311,7 @@ function renderNav() {
       <section class="nav-group" aria-labelledby="navGroup${index}">
         <h2 id="navGroup${index}" class="nav-group-label">${label}</h2>
         ${names.map(button).join("")}
-      </section>`).join("")}</div>`;
+      </section>`).join("")}<div class="nav-mobile-account"><button type="button" class="nav-button danger" onclick="document.getElementById('logoutBtn').click()"><span aria-hidden="true">↪</span>Sair e voltar ao login</button></div></div>`;
   mlUpdateChatUnreadBadge(Number(document.documentElement.dataset.chatUnread || 0));
 }
 
