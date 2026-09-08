@@ -5008,6 +5008,23 @@ $("#demoBtn").onclick =
 $("#loginForm").onsubmit =
   async event => {
     event.preventDefault();
+    const form = event.currentTarget;
+    if (form.dataset.loading === 'true') return;
+    form.dataset.loading = 'true';
+    form.setAttribute('aria-busy', 'true');
+    const controls = Array.from(document.querySelectorAll('#authScreen button, #authScreen input'));
+    const disabledBefore = controls.map(control => control.disabled);
+    controls.forEach(control => control.disabled = true);
+    const submit = form.querySelector('button');
+    const previousLabel = submit.textContent;
+    submit.textContent = 'Entrando…';
+    const overlay = document.createElement('div');
+    overlay.className = 'login-loading-overlay';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.innerHTML = '<div class="login-loading-card"><span class="login-loading-spinner" aria-hidden="true"></span><strong>Entrando no MetaLife…</strong><span>Aguarde enquanto preparamos seu painel.</span></div>';
+    document.body.appendChild(overlay);
+    try {
     mlArmBrowserNotifications();
 
     const response =
@@ -5055,6 +5072,15 @@ $("#loginForm").onsubmit =
       response?.error ||
       "Falha no login."
     );
+    } catch (error) {
+      toast('Não foi possível concluir a entrada. Tente novamente.');
+    } finally {
+      overlay.remove();
+      submit.textContent = previousLabel;
+      controls.forEach((control, index) => control.disabled = disabledBefore[index]);
+      form.dataset.loading = 'false';
+      form.removeAttribute('aria-busy');
+    }
   };
 
 /* =========================
