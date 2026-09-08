@@ -130,7 +130,14 @@
   document.addEventListener('DOMContentLoaded', () => {
     const button=document.createElement('button'); button.className='icon-btn'; button.type='button';
     button.textContent='⚙'; button.title='Instalação e notificações';
-    button.onclick=()=>window.mlPwaRefresh(true);
+    button.onclick=()=>{
+      const card=document.getElementById('mlPwaCard');
+      if (card && !card.hidden) {
+        card.hidden=true;
+      } else {
+        window.mlPwaRefresh(true);
+      }
+    };
     document.querySelector('.top-actions').appendChild(button);
     register().catch(()=>{});
   });
