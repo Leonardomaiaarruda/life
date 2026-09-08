@@ -52,7 +52,7 @@
     const token = localStorage.ml_token;
     try {
       await register();
-      if (!settings) settings = await API.call('pushSettings');
+      if (!settings?.ok || force) settings = await API.call('pushSettings');
       if (localStorage.ml_token !== token) return;
       if (iphone() && !installed()) message('Primeiro adicione o MetaLife à Tela de Início. Depois abra pelo ícone para ativar os avisos.');
       else if (!capable()) message('Este navegador permite usar o sistema, mas não oferece notificações em segundo plano.');
@@ -70,19 +70,40 @@
   async function enable() {
     if (busy) return;
     busy = true;
+    let stage = 'permissão';
     try {
       // Called directly from the user click, as required by mobile browsers.
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') { message('Notificações não autorizadas. Você pode alterar a permissão nas configurações do navegador.'); return; }
+      stage = 'configuração';
+      settings = await API.call('pushSettings');
+      if (!settings?.ok || !settings.enabled) { message('O Apps Script não confirmou a configuração. Confira as propriedades das chaves e publique uma nova versão da implantação.'); return; }
+      stage = 'inscrição no aparelho';
       const reg = await register();
       const key = Uint8Array.from(atob(settings.publicKey.replace(/-/g,'+').replace(/_/g,'/')), char => char.charCodeAt(0));
       let subscription = await reg.pushManager.getSubscription();
       if (!subscription) subscription = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:key});
+      stage = 'registro da conta no servidor';
       const response = await API.call('registerPush', {subscription:subscription.toJSON()});
-      if (!response.ok) throw Error(response.error || 'Falha ao registrar');
+      if (!response?.ok) {
+        const error = String(response?.error || '');
+        if (/PUSH_DEVICES|Aba ausente/i.test(error)) message('Falta criar a aba de dispositivos. Execute setupPush no editor do Apps Script e tente novamente.');
+        else if (/sessão|sessao|token|login/i.test(error)) message('Sua sessão não foi aceita. Saia, entre novamente e confirme as notificações.');
+        else if (/Ação inválida|not defined|não configurad/i.test(error)) message('A implantação do Apps Script está incompleta ou antiga. Adicione os arquivos Push e PushCrypto e publique uma nova versão.');
+        else if (/Provedor|Endereço|Inscrição/i.test(error)) message('O servidor recusou a inscrição deste navegador. Informe esse aviso e qual navegador está usando para ajustarmos a compatibilidade.');
+        else if (/Limite de dez/i.test(error)) message('Sua conta atingiu o limite de aparelhos. Desative as notificações em um aparelho antigo.');
+        else if (response?.offline) message('O registro no servidor não respondeu. Confira a internet e tente novamente.');
+        else message('O Apps Script recusou o registro das notificações. Confira a execução mais recente no editor do Apps Script.');
+        return;
+      }
+      stage = 'atualização dos botões';
       message('Notificações ativadas para esta conta neste aparelho.');
       await refreshButtons();
-    } catch (_) { message('Não foi possível ativar. Confira a configuração do servidor e tente novamente.'); }
+    } catch (error) {
+      if (error?.name === 'NotAllowedError') message('O celular bloqueou a permissão. Confira as permissões de notificação do aplicativo nas configurações do aparelho.');
+      else if (error?.name === 'InvalidCharacterError' || error?.name === 'InvalidAccessError') message('A chave pública das notificações está inválida. Confira o valor nas propriedades do Apps Script, sem aspas ou espaços.');
+      else message('Não foi possível concluir a etapa: ' + stage + '. Informe esse aviso para identificarmos a falha.');
+    }
     finally { busy=false; }
   }
   window.mlPwaDisconnect = async function() {
