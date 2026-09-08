@@ -335,6 +335,7 @@ document.addEventListener("click", event => {
 });
 
 function show(page) {
+  document.body.classList.remove("mobile-chat-open");
   if (currentPage === "Chats" && page !== "Chats" && typeof mlStopChatPolling === "function") {
     mlStopChatPolling();
   }
@@ -4713,6 +4714,24 @@ function openChat(friendId) {
   show("Chats");
 }
 
+function mlChatViewport() {
+  const viewport = window.visualViewport;
+  document.documentElement.style.setProperty('--chat-viewport-height', (viewport?.height || window.innerHeight) + 'px');
+  document.documentElement.style.setProperty('--chat-viewport-top', (viewport?.offsetTop || 0) + 'px');
+}
+window.visualViewport?.addEventListener('resize', mlChatViewport);
+window.visualViewport?.addEventListener('scroll', mlChatViewport);
+window.addEventListener('resize', mlChatViewport);
+
+function mlBackToConversations() {
+  mlStopChatPolling();
+  mlChatState.activeId = null;
+  mlChatState.messages = [];
+  document.activeElement?.blur();
+  document.body.classList.remove('mobile-chat-open');
+  renderChatConversationList();
+}
+
 async function selectChatConversation(conversationId) {
   mlChatState.activeId = String(conversationId);
   renderChatConversationList();
@@ -4720,9 +4739,12 @@ async function selectChatConversation(conversationId) {
   const conversation = mlChatState.conversations.find(c => String(c.id) === String(conversationId));
   const panel = $("#chatMainPanel");
   if (!conversation || !panel) return;
+  document.body.classList.add("mobile-chat-open");
+  mlChatViewport();
 
   panel.innerHTML = `
     <div class="chat-header-modern">
+      <button type="button" class="chat-mobile-back" onclick="mlBackToConversations()" aria-label="Voltar às conversas">‹</button>
       <div class="chat-avatar large">${mlChatAvatar(conversation.name)}</div>
       <div>
         <h3>${escapeHtml(conversation.name || "Usuário")}</h3>
@@ -4733,7 +4755,7 @@ async function selectChatConversation(conversationId) {
       <div class="chat-loading">Carregando mensagens...</div>
     </div>
     <div class="chat-composer-modern">
-      <textarea id="chatText" rows="1" maxlength="3000" placeholder="Escreva uma mensagem..."></textarea>
+      <textarea id="chatText" rows="1" maxlength="3000" aria-label="Mensagem" placeholder="Escreva uma mensagem..."></textarea>
       <button id="chatSendButton" class="chat-send-button" onclick="sendMsg()" title="Enviar mensagem">➤</button>
     </div>`;
 
@@ -4749,7 +4771,7 @@ async function selectChatConversation(conversationId) {
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 120) + "px";
     });
-    input.focus();
+    if (!window.matchMedia("(max-width: 760px)").matches) input.focus();
   }
 
   await loadChatMessages(true);
@@ -4917,6 +4939,7 @@ $("#logoutBtn").onclick =
   async () => {
     try { await window.mlPwaDisconnect?.(); } catch (_) { toast("Não foi possível cancelar as notificações. Tente sair novamente com internet."); return; }
     window.mlPwaClear?.();
+    document.body.classList.remove("mobile-chat-open");
     mlStopMessageNotifications();
     mlStopChatPolling();
     localStorage.removeItem("ml_user_id");
