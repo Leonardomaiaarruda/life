@@ -13,6 +13,7 @@ const NAV = [
   ["Peso & Progresso", "⚖"],
   ["Trabalho & Tarefas", "✓"],
   ["Meu Progresso", "◫"],
+  ["Comunidade", "◈"],
   ["Pessoas", "👥"],
   ["Desafios", "🏆"],
   ["Chats", "💬"]
@@ -310,7 +311,7 @@ function renderNav() {
   const groups = [
     ["Planejamento", ["Metas", "Hábitos", "Trabalho & Tarefas"]],
     ["Saúde", ["Treino", "Dieta", "Peso & Progresso"]],
-    ["Comunidade", ["Pessoas", "Desafios", "Chats"]]
+    ["Comunidade", ["Comunidade", "Pessoas", "Desafios", "Chats"]]
   ];
   const moreActive = groups.some(([, names]) => names.includes(currentPage));
   $("#mainNav").innerHTML = `
@@ -367,6 +368,7 @@ function show(page) {
     "Peso & Progresso": renderWeight,
     "Trabalho & Tarefas": renderTasks,
     "Meu Progresso": renderInsights,
+    "Comunidade": () => Social.render(),
     "Pessoas": renderPeople,
     "Desafios": renderChallenges,
     "Chats": renderChats
