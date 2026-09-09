@@ -4745,6 +4745,30 @@ function mlBackToConversations() {
   renderChatConversationList();
 }
 
+async function mlDeleteChat(button) {
+  const id = mlChatState.activeId;
+  if (!id || button.disabled) return;
+  if (!confirm("Excluir esta conversa para você? O histórico continuará disponível para a outra pessoa. Novas mensagens farão a conversa aparecer novamente.")) return;
+  button.disabled = true;
+  button.textContent = "Excluindo…";
+  try {
+    const response = await api("deleteConversation", { conversa_id: id });
+    if (!response?.ok) throw new Error(response?.error === "Ação inválida" ? "Atualize o Code.gs e implante a nova versão do Apps Script para excluir conversas." : response?.error || "Não foi possível excluir a conversa.");
+    mlChatState.conversations = mlChatState.conversations.filter(c => String(c.id) !== String(id));
+    delete mlChatState.unreadSnapshot[String(id)];
+    if (String(mlChatState.activeId) === String(id)) {
+      mlBackToConversations();
+      const panel = $("#chatMainPanel");
+      if (panel) panel.innerHTML = '<div class="chat-empty-small">Conversa excluída. Selecione outra conversa.</div>';
+    }
+    renderChatConversationList();
+    mlUpdateChatUnreadBadge(mlChatState.conversations.reduce((sum, c) => sum + Number(c.unread_count || 0), 0));
+    toast("Conversa excluída para você.");
+    await loadChatConversations(true);
+  } catch (error) { toast(error.message || "Não foi possível excluir a conversa. Tente novamente."); }
+  finally { button.disabled = false; button.textContent = "Excluir"; }
+}
+
 async function selectChatConversation(conversationId) {
   mlChatState.activeId = String(conversationId);
   renderChatConversationList();
@@ -4763,6 +4787,7 @@ async function selectChatConversation(conversationId) {
         <h3>${escapeHtml(conversation.name || "Usuário")}</h3>
         <div class="chat-presence"><span></span> Amigo no MetaLife</div>
       </div>
+      <button type="button" class="chat-delete-button" onclick="mlDeleteChat(this)" aria-label="Excluir conversa para mim">Excluir</button>
     </div>
     <div id="chatMessages" class="chat-messages-modern">
       <div class="chat-loading">Carregando mensagens...</div>

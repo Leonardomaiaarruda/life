@@ -204,3 +204,8 @@
 }
 
 .sync-status{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px;margin:10px 0;border:1px solid #c7d2fe;border-radius:12px;background:#eef2ff;color:#3730a3;font-size:13px}.sync-status[hidden]{display:none}
+
+.chat-delete-button { margin-left:auto; flex-shrink:0; padding:10px; border:1px solid currentColor; border-radius:10px; background:transparent; color:#f87171; cursor:pointer; }
+.chat-header-modern > div:has(h3) { min-width:0; }
+.chat-header-modern h3 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chat-delete-button:disabled { opacity:.6; cursor:wait; }
