@@ -1,0 +1,16 @@
+window.MetaLifeV20Images={
+  "agachamento-livre":"assets/v20/agachamento-livre.svg",
+  "leg-press-45":"assets/v20/leg-press-45.svg",
+  "cadeira-extensora":"assets/v20/cadeira-extensora.svg",
+  "cadeira-flexora":"assets/v20/cadeira-flexora.svg",
+  "afundo":"assets/v20/afundo.svg",
+  "passada":"assets/v20/passada.svg",
+  "stiff":"assets/v20/stiff.svg",
+  "levantamento-terra":"assets/v20/levantamento-terra.svg",
+  "agachamento-bulgaro":"assets/v20/agachamento-bulgaro.svg",
+  "agachamento-sumo":"assets/v20/agachamento-sumo.svg",
+  "cadeira-abdutora":"assets/v20/cadeira-abdutora.svg",
+  "elevacao-panturrilha":"assets/v20/elevacao-panturrilha.svg",
+  "panturrilha-sentada":"assets/v20/panturrilha-sentada.svg",
+  "panturrilha-no-leg-press":"assets/v20/panturrilha-no-leg-press.svg"
+};

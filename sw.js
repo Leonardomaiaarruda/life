@@ -1,44 +1,27 @@
-/* MetaLife V19 — cache apenas de arquivos estáticos; dados pessoais continuam fora do Cache Storage. */
+/* MetaLife V20 — cache apenas de arquivos estáticos; dados pessoais continuam fora do Cache Storage. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v19-1';
+const STATIC_CACHE = 'metalife-static-v20-1';
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './css/style.css',
-  './css/v13.css',
-  './css/mobile-nav.css',
-  './css/v14.css',
-  './css/v15-v16.css',
-  './css/v17-v18.css',
-  './css/v19.css',
-  './css/social.css',
-  './css/competitions.css',
-  './css/community.css',
-  './js/config.js',
-  './js/api.js',
-  './js/store.js',
-  './js/sync.js',
-  './js/fast-data.js',
-  './js/pwa.js',
-  './js/app.js',
-  './js/social.js',
-  './js/competitions.js',
-  './js/community.js',
-  './js/health-import.js',
-  './js/progress.js',
-  './js/v13.js',
-  './js/mobile-nav.js',
-  './js/v14.js',
-  './js/v15.js',
-  './js/v16.js',
-  './js/v17.js',
-  './js/v18.js',
-  './js/v19.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './', './index.html', './manifest.webmanifest',
+  './css/style.css', './css/v13.css', './css/mobile-nav.css', './css/v14.css',
+  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css',
+  './css/social.css', './css/competitions.css', './css/community.css',
+  './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
+  './js/pwa.js', './js/app.js', './js/social.js', './js/competitions.js', './js/community.js',
+  './js/health-import.js', './js/progress.js', './js/v13.js', './js/mobile-nav.js',
+  './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js', './js/v18.js', './js/v19.js',
+  './js/v20.js', './js/v20-images.js',
+  './assets/v20/legs-sprite.webp',
+  './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
+  './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg',
+  './assets/v20/afundo.svg', './assets/v20/passada.svg', './assets/v20/stiff.svg',
+  './assets/v20/levantamento-terra.svg', './assets/v20/agachamento-bulgaro.svg',
+  './assets/v20/agachamento-sumo.svg', './assets/v20/cadeira-abdutora.svg',
+  './assets/v20/elevacao-panturrilha.svg', './assets/v20/panturrilha-sentada.svg',
+  './assets/v20/panturrilha-no-leg-press.svg',
+  './icons/icon-192.png', './icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -62,10 +45,8 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-
-  const isStatic = /\.(?:html|css|js|webmanifest|png|jpg|jpeg|svg|ico)$/i.test(url.pathname) || url.pathname.endsWith('/');
+  const isStatic = /\.(?:html|css|js|webmanifest|png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname) || url.pathname.endsWith('/');
   if (!isStatic) return;
-
   event.respondWith((async () => {
     const cache = await caches.open(STATIC_CACHE);
     const cached = await cache.match(request, {ignoreSearch:true});
