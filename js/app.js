@@ -209,7 +209,7 @@ async function syncFromServer() {
     // Desafios são sincronizados separadamente para manter compatibilidade
     // com backends antigos que ainda não possuem o módulo.
     try {
-      const challengeResponse = await api("listChallenges");
+      const challengeResponse = await api("listChallengesV7");
       if (syncToken !== localStorage.getItem("ml_token")) return;
       if (challengeResponse?.ok) {
         state.challenges = Array.isArray(challengeResponse.items)
@@ -3587,7 +3587,7 @@ function challengeUserName() {
   return state.user?.name || state.user?.nome || "Você";
 }
 
-const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-6";
+const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-7";
 
 async function challengeSessionMessage(error = "") {
   try {
@@ -3660,7 +3660,7 @@ async function loadChallenges() {
   ensureChallengesArray();
   if (!isLogged()) return state.challenges;
 
-  const response = await api("listChallenges");
+  const response = await api("listChallengesV7");
   if (response?.ok) {
     const items = Array.isArray(response.items)
       ? response.items
@@ -3899,13 +3899,13 @@ async function saveChallenge(editId = "") {
   };
 
   if (isLogged()) {
-    const action = editId ? "updateChallenge" : "createChallengeV4";
+    const action = editId ? "updateChallengeV7" : "createChallengeV7";
     let response = await API.call(action, { item });
 
     // O Apps Script pode concluir a gravação depois de o navegador encerrar
     // a espera. Confirme pelo ID antes de informar que a criação falhou.
     if (!response?.ok && !editId && response?.offline) {
-      const verification = await API.call("listChallenges");
+      const verification = await API.call("listChallengesV7");
       const confirmed = (verification?.items || verification?.challenges || [])
         .find(challenge => String(challenge.id) === String(item.id));
       if (confirmed) response = { ok: true, item: confirmed, confirmed_after_wait: true };
@@ -3929,7 +3929,7 @@ async function saveChallenge(editId = "") {
 }
 
 async function acceptChallenge(id) {
-  const response = isLogged() ? await api("acceptChallenge", { challenge_id: id }) : { ok: true };
+  const response = isLogged() ? await api("acceptChallengeV7", { challenge_id: id }) : { ok: true };
   if (!response?.ok) return toast(response?.error || "Não foi possível aceitar.");
   const challenge = ensureChallengesArray().find(c => c.id === id);
   const p = challenge?.participants?.find(p => String(p.user_id) === challengeUserId());
@@ -3941,7 +3941,7 @@ async function acceptChallenge(id) {
 }
 
 async function rejectChallenge(id) {
-  const response = isLogged() ? await api("rejectChallenge", { challenge_id: id }) : { ok: true };
+  const response = isLogged() ? await api("rejectChallengeV7", { challenge_id: id }) : { ok: true };
   if (!response?.ok) return toast(response?.error || "Não foi possível recusar.");
   const challenge = ensureChallengesArray().find(c => c.id === id);
   const p = challenge?.participants?.find(p => String(p.user_id) === challengeUserId());
@@ -3991,7 +3991,7 @@ function getAutomaticChallengeProgress(challenge) {
 async function updateChallengeProgress(id) {
   const value = Number($("#challengeProgressValue")?.value || 0);
   if (value < 0) return toast("Informe um valor válido.");
-  const response = isLogged() ? await api("updateChallengeProgress", { challenge_id: id, progress: value }) : { ok: true };
+  const response = isLogged() ? await api("updateChallengeProgressV7", { challenge_id: id, progress: value }) : { ok: true };
   if (!response?.ok) return toast(response?.error || "Não foi possível atualizar.");
   const challenge = ensureChallengesArray().find(c => c.id === id);
   const participant = challenge?.participants?.find(p => String(p.user_id) === challengeUserId());
@@ -4028,7 +4028,7 @@ function viewChallenge(id) {
 
 async function leaveChallenge(id) {
   if (!confirm("Deseja abandonar este desafio?")) return;
-  const response = isLogged() ? await api("leaveChallenge", { challenge_id: id }) : { ok: true };
+  const response = isLogged() ? await api("leaveChallengeV7", { challenge_id: id }) : { ok: true };
   if (!response?.ok) return toast(response?.error || "Não foi possível abandonar.");
   const challenge = ensureChallengesArray().find(c => c.id === id);
   const p = challenge?.participants?.find(p => String(p.user_id) === challengeUserId());
@@ -4040,7 +4040,7 @@ async function leaveChallenge(id) {
 
 async function deleteChallenge(id) {
   if (!confirm("Excluir este desafio para todos os participantes?")) return;
-  const response = isLogged() ? await api("deleteChallenge", { challenge_id: id }) : { ok: true };
+  const response = isLogged() ? await api("deleteChallengeV7", { challenge_id: id }) : { ok: true };
   if (!response?.ok) return toast(response?.error || "Não foi possível excluir.");
   state.challenges = ensureChallengesArray().filter(c => c.id !== id);
   saveLocal();
@@ -6235,3 +6235,4 @@ window.addEventListener("unhandledrejection", event => {
 window.addEventListener("error", event => {
   console.error("MetaLife: erro de execução", event.error || event.message);
 });
+
