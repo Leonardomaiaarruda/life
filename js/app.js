@@ -3685,7 +3685,7 @@ async function renderChallenges() {
         <h2>Desafios entre amigos</h2>
         <div class="muted">Compita com seus amigos e acompanhe o ranking em tempo real.</div>
       </div>
-      <button class="primary" onclick="challengeModal()">+ Novo desafio</button>
+      <div class="competition-actions"><button class="primary" onclick="Competitions.render()">Competições e times</button><button class="chip-btn" onclick="challengeModal()">+ Desafio tradicional</button></div>
     </div>
 
     ${pending.length ? `
