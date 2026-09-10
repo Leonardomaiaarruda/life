@@ -1,8 +1,82 @@
-/* No caching of personal data or API responses. */
+/* MetaLife V19 — cache apenas de arquivos estáticos; dados pessoais continuam fora do Cache Storage. */
 self.window = self;
 importScripts('./js/config.js');
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
+const STATIC_CACHE = 'metalife-static-v19-1';
+const STATIC_ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './css/style.css',
+  './css/v13.css',
+  './css/mobile-nav.css',
+  './css/v14.css',
+  './css/v15-v16.css',
+  './css/v17-v18.css',
+  './css/v19.css',
+  './css/social.css',
+  './css/competitions.css',
+  './css/community.css',
+  './js/config.js',
+  './js/api.js',
+  './js/store.js',
+  './js/sync.js',
+  './js/fast-data.js',
+  './js/pwa.js',
+  './js/app.js',
+  './js/social.js',
+  './js/competitions.js',
+  './js/community.js',
+  './js/health-import.js',
+  './js/progress.js',
+  './js/v13.js',
+  './js/mobile-nav.js',
+  './js/v14.js',
+  './js/v15.js',
+  './js/v16.js',
+  './js/v17.js',
+  './js/v18.js',
+  './js/v19.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    await Promise.allSettled(STATIC_ASSETS.map(asset => cache.add(asset)));
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k.startsWith('metalife-static-') && k !== STATIC_CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  const isStatic = /\.(?:html|css|js|webmanifest|png|jpg|jpeg|svg|ico)$/i.test(url.pathname) || url.pathname.endsWith('/');
+  if (!isStatic) return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    const cached = await cache.match(request, {ignoreSearch:true});
+    const network = fetch(request).then(response => {
+      if (response && response.ok) cache.put(request, response.clone());
+      return response;
+    }).catch(() => null);
+    return cached || await network || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  })());
+});
+
 self.addEventListener('push', event => {
   event.waitUntil((async () => {
     const subscription = await self.registration.pushManager.getSubscription();
@@ -26,7 +100,7 @@ self.addEventListener('push', event => {
           } else body = String(notice.name).slice(0,80) + ' te mandou mensagem. Toque para abrir o chat.';
         }
       } finally { clearTimeout(timer); }
-    } catch (_) { /* A visible generic notification remains available offline. */ }
+    } catch (_) {}
     await self.registration.showNotification('MetaLife', {
       body, icon: new URL('icons/icon-192.png', self.registration.scope).href,
       badge: new URL('icons/icon-192.png', self.registration.scope).href,
@@ -34,6 +108,7 @@ self.addEventListener('push', event => {
     });
   })());
 });
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil((async () => {
