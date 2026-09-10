@@ -94,5 +94,12 @@ window.Community=(()=>{
       }
     }catch(error){toast(error.message);}finally{b.disabled=false;}
   });
-  return {render,profile,chat,stopChat,comments};
+  async function openRoom(value){
+    if(!/^(club|competition):[A-Za-z0-9_-]{8,80}$/.test(value))return;
+    show('Comunidade');
+    try{const [kind,id]=value.split(':'),r=await request(kind==='club'?'listClubs':'listCompetitions');const item=r.items.find(c=>c.id===id&&c.members.some(m=>m.user_id===me()&&m.status==='accepted'));
+      if(!item)throw Error('Você não participa mais desta conversa.');if(currentPage==='Comunidade')await chat(value,item.title);
+    }catch(e){toast(e.message);}
+  }
+  return {render,profile,chat,stopChat,comments,openRoom};
 })();

@@ -8,6 +8,7 @@ self.addEventListener('push', event => {
     const subscription = await self.registration.pushManager.getSubscription();
     if (!subscription) return;
     let body = 'Você tem uma nova mensagem. Toque para abrir o chat.';
+    let room = '';
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4000);
@@ -18,25 +19,32 @@ self.addEventListener('push', event => {
           signal: controller.signal
         });
         const notice = await response.json();
-        if (notice.ok && notice.name) body = String(notice.name).slice(0,80) + ' te mandou mensagem. Toque para abrir o chat.';
+        if (notice.ok && notice.name) {
+          if (/^(club|competition):[A-Za-z0-9_-]{8,80}$/.test(notice.room || '')) {
+            room=notice.room;
+            body=String(notice.name).slice(0,80)+' enviou uma mensagem em '+String(notice.room_name||'seu grupo').slice(0,80)+'.';
+          } else body = String(notice.name).slice(0,80) + ' te mandou mensagem. Toque para abrir o chat.';
+        }
       } finally { clearTimeout(timer); }
     } catch (_) { /* A visible generic notification remains available offline. */ }
     await self.registration.showNotification('MetaLife', {
       body, icon: new URL('icons/icon-192.png', self.registration.scope).href,
       badge: new URL('icons/icon-192.png', self.registration.scope).href,
-      tag:'metalife-chat', data:{url:new URL('?chat=1', self.registration.scope).href}
+      tag:room?'metalife-'+room:'metalife-chat', data:{room}
     });
   })());
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil((async () => {
-    const url = new URL('?chat=1', self.registration.scope).href;
+    const candidate=event.notification.data?.room;
+    const room=/^(club|competition):[A-Za-z0-9_-]{8,80}$/.test(candidate||'')?candidate:'';
+    const url = new URL(room?'?room='+encodeURIComponent(room):'?chat=1', self.registration.scope).href;
     const windows = await self.clients.matchAll({type:'window',includeUncontrolled:true});
     const existing = windows.find(client => client.url.startsWith(self.registration.scope));
     if (existing) {
       await existing.focus();
-      existing.postMessage({type:'METALIFE_OPEN_CHAT'});
+      existing.postMessage({type:'METALIFE_OPEN_CHAT',room});
     } else await self.clients.openWindow(url);
   })());
 });

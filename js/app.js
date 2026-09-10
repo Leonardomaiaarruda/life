@@ -118,7 +118,7 @@ async function mlReadDashboard() {
   const legacyKey = 'ml_dashboard_legacy_' + CONFIG.API_URL;
   if (!sessionStorage.getItem(legacyKey)) {
     const result = await api('getDashboard');
-    if (result?.ok && result.sections) return mlDashboardActions.map(action => result.sections[action] || {ok:false});
+    if (result?.ok && result.sections) { window.UnifiedXP?.apply(result.progress);return mlDashboardActions.map(action => result.sections[action] || {ok:false}); }
     if (result?.error !== 'Ação inválida') return mlDashboardActions.map(() => ({ok:false}));
     sessionStorage.setItem(legacyKey, '1');
   }
@@ -265,6 +265,7 @@ async function boot() {
       await syncFromServer();
       if (bootToken !== localStorage.getItem("ml_token")) return;
       await ensureGoalDailyItems();
+      if (!state.unifiedProgress) await window.UnifiedXP?.refresh();
       if (bootToken !== localStorage.getItem("ml_token")) return;
       renderUserBadge();
       if (currentPage !== "Chats") show(currentPage);
@@ -291,9 +292,9 @@ function renderUserBadge() {
     <b>${state.user?.name || "Usuário"}</b>
     <br>
     <span>
-      Nível ${state.user?.level || 1}
+      Nível <span data-unified-level>${window.UnifiedXP?.value("level") ?? "—"}</span>
       ·
-      ${state.user?.xp || 0} XP
+      <span data-unified-xp>${window.UnifiedXP?.value("xp") ?? "—"}</span> XP
     </span>
   `;
 }
@@ -587,7 +588,7 @@ function renderToday() {
         </div>
 
         <div class="big">
-          🔥 ${state.user?.streak || 0} dias
+          🔥 <span data-unified-streak>${window.UnifiedXP?.value("streak") ?? "—"}</span> dias
         </div>
       </div>
 
@@ -597,17 +598,17 @@ function renderToday() {
         </div>
 
         <div class="big">
-          ${state.user?.level || 1}
+          <span data-unified-level>${window.UnifiedXP?.value("level") ?? "—"}</span>
         </div>
       </div>
 
       <div class="card">
         <div class="metric-label">
-          XP total
+          XP integrado
         </div>
 
         <div class="big">
-          ${state.user?.xp || 0}
+          <span data-unified-xp>${window.UnifiedXP?.value("xp") ?? "—"}</span>
         </div>
       </div>
 
@@ -2951,8 +2952,7 @@ async function finishWorkout() {
     }
   );
 
-  state.user.xp =
-    (state.user.xp || 0) + 100;
+  // O XP é atualizado pelo servidor após a sincronização do treino.
 
   const daily =
     dayItems().find(
@@ -2989,20 +2989,10 @@ async function finishWorkout() {
       );
     }
 
-    await api(
-      "updateProfile",
-      {
-        xp: state.user.xp,
-        nivel:
-          state.user.level || 1,
-        streak:
-          state.user.streak || 0
-      }
-    );
   }
 
   toast(
-    "Treino concluído e cargas registradas. +100 XP"
+    "Treino concluído. O XP integrado será atualizado após a sincronização."
   );
 
   renderWorkout();

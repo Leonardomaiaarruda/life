@@ -24,7 +24,7 @@ window.API = {
       });
       const text = await response.text();
       if (!response.ok) return {ok:false, offline:response.status >= 500 || response.status === 429, error:'Servidor indisponível. Tente novamente.'};
-      try { return JSON.parse(text); }
+      try { const result=JSON.parse(text);if(result?.ok&&/^(save|delete|createSocialPost)/.test(action))window.dispatchEvent(new Event('metalife-data-saved'));return result; }
       catch { return { ok:false, offline:true, error:"Resposta inválida da API" }; }
     } catch (error) {
       return { ok:false, offline:true, error:error.name === "AbortError" ? "Tempo limite da API excedido" : error.message };

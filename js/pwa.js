@@ -16,9 +16,10 @@
     }
     return registration;
   }
-  function openChat() {
-    if (!localStorage.ml_token) { sessionStorage.ml_open_chat = '1'; return; }
-    show('Chats');
+  function openChat(room='') {
+    if (!/^(club|competition):[A-Za-z0-9_-]{8,80}$/.test(room)) room='';
+    if (!localStorage.ml_token) { sessionStorage.ml_open_chat = '1';if(room)sessionStorage.ml_open_room=room;return; }
+    if(room)window.Community?.openRoom(room);else show('Chats');
   }
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault(); installPrompt = event;
@@ -26,7 +27,7 @@
   });
   window.addEventListener('appinstalled', () => { installPrompt = null; window.mlPwaRefresh(); });
   navigator.serviceWorker?.addEventListener('message', event => {
-    if (event.data?.type === 'METALIFE_OPEN_CHAT') openChat();
+    if (event.data?.type === 'METALIFE_OPEN_CHAT') openChat(event.data.room);
   });
   window.mlPwaRefresh = async function(force = false) {
     if (!localStorage.ml_token) return;
@@ -119,10 +120,12 @@
   };
   window.mlPwaAfterLogin = function() {
     const params=new URLSearchParams(location.search);
-    if (params.has('chat') || sessionStorage.ml_open_chat) {
+    if (params.has('chat') || params.has('room') || sessionStorage.ml_open_chat) {
+      const room=params.get('room')||sessionStorage.ml_open_room||'';
+      sessionStorage.removeItem('ml_open_room');
       sessionStorage.removeItem('ml_open_chat');
-      params.delete('chat'); history.replaceState(null,'',location.pathname + (params.size ? '?'+params : '') + location.hash);
-      openChat();
+      params.delete('chat');params.delete('room'); history.replaceState(null,'',location.pathname + (params.size ? '?'+params : '') + location.hash);
+      openChat(room);
     }
     window.mlPwaRefresh();
   };

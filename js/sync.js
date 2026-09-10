@@ -28,6 +28,7 @@ window.Sync = (() => {
     if (running) { await running; if (!read().length) return; }
     const id=owner(), token=localStorage.ml_token;
     if (!id || !token || navigator.onLine===false) {render();return;}
+    let committed=false;
     const work=locked(id, async()=>{
       while (owner()===id && localStorage.ml_token===token) {
         const queue=read(id), entry=queue[0];
@@ -39,12 +40,12 @@ window.Sync = (() => {
           if(latest[0]?.id===entry.id) { latest[0].blocked=!result?.offline; write(id,latest); }
           break;
         }
-        write(id,latest.filter(item=>item.id!==entry.id)); lastSaved=true;
+        write(id,latest.filter(item=>item.id!==entry.id)); lastSaved=true;committed=true;
       }
     });
     running=work;render();
     try { await work; } catch { /* Durable queue remains for retry. */ }
-    finally { if(running===work)running=null;render(); }
+    finally { if(running===work)running=null;render();if(!read().length&&committed)window.dispatchEvent(new Event('metalife-data-saved')); }
   }
   async function save(action,data) {
     const id=owner();
