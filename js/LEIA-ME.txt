@@ -1,36 +1,15 @@
-METALIFE V5 — INTEGRAÇÃO DOS DESAFIOS
+METALIFE — MÓDULO DE DESAFIOS INTEGRADO
 
-1) No Google Apps Script, crie um novo arquivo chamado Desafios.gs e cole o conteúdo de Desafios.gs.
+O módulo de desafios já está incluído no arquivo apps-script/Code.gs.
 
-2) Execute uma vez a função:
-setupDesafios()
+No projeto do Google Apps Script:
 
-Ela criará as abas:
-- DESAFIOS
-- DESAFIO_PARTICIPANTES
+1) Mantenha apenas a implementação existente no Code.gs atualizado.
+2) Se existir um arquivo antigo chamado Desafios.gs, remova-o. Ele contém
+   funções globais duplicadas e pode sobrescrever a autenticação atual.
+3) Execute setupDesafios() somente se as abas DESAFIOS e
+   DESAFIO_PARTICIPANTES ainda não existirem.
+4) Salve e publique uma nova versão da implantação do Web App.
 
-3) No doPost(e) do seu Code.gs, logo depois de ler o JSON e obter a variável action/body, adicione:
-
-const challengeResult = handleChallengeAction(action, body);
-if (challengeResult) return out(challengeResult);
-
-Se no seu doPost a variável do JSON se chama data em vez de body, use:
-
-const challengeResult = handleChallengeAction(action, data);
-if (challengeResult) return out(challengeResult);
-
-IMPORTANTE: o objeto passado precisa conter também o token recebido do frontend.
-
-4) Salve e publique uma NOVA VERSÃO do Web App do Apps Script.
-
-5) No GitHub Pages, substitua js/app.js pelo arquivo MetaLife_app_V5_desafios.js (renomeando-o para app.js).
-
-Ações adicionadas no backend:
-- createChallenge
-- updateChallenge
-- listChallenges
-- acceptChallenge
-- rejectChallenge
-- updateChallengeProgress
-- leaveChallenge
-- deleteChallenge
+Não copie novamente funções como challengeAuth_, createChallenge,
+listChallenges ou handleChallengeAction para arquivos separados.
