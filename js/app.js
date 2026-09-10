@@ -3587,7 +3587,7 @@ function challengeUserName() {
   return state.user?.name || state.user?.nome || "Você";
 }
 
-const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-4";
+const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-5";
 
 async function challengeSessionMessage(error = "") {
   try {
