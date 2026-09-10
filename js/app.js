@@ -3587,6 +3587,42 @@ function challengeUserName() {
   return state.user?.name || state.user?.nome || "Você";
 }
 
+function mlBeginButtonLoading(button, label = "Carregando…") {
+  if (!button || button.dataset.mlBusy === "true") return () => {};
+
+  const originalHtml = button.innerHTML;
+  const originalWidth = button.style.minWidth;
+  button.dataset.mlBusy = "true";
+  button.setAttribute("aria-busy", "true");
+  button.disabled = true;
+  button.style.minWidth = `${Math.ceil(button.getBoundingClientRect().width)}px`;
+  button.innerHTML = `<span class="button-loading-spinner" aria-hidden="true"></span><span>${escapeHtml(label)}</span>`;
+
+  return () => {
+    if (!button) return;
+    button.innerHTML = originalHtml;
+    button.style.minWidth = originalWidth;
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+    delete button.dataset.mlBusy;
+  };
+}
+
+window.mlBeginButtonLoading = mlBeginButtonLoading;
+
+document.addEventListener("click", event => {
+  const button = event.target.closest?.("button");
+  if (button) window.mlLastActionButton = { button, at: Date.now() };
+}, true);
+
+function mlLoadingPanel(message, detail = "Isso pode levar alguns segundos.") {
+  return `<div class="action-loading" role="status" aria-live="polite">
+    <span class="action-loading-spinner" aria-hidden="true"></span>
+    <strong>${escapeHtml(message)}</strong>
+    <span>${escapeHtml(detail)}</span>
+  </div>`;
+}
+
 const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-7";
 
 async function challengeSessionMessage(error = "") {
@@ -3698,7 +3734,7 @@ async function renderChallenges() {
         <h2>Desafios entre amigos</h2>
         <div class="muted">Compita com seus amigos e acompanhe o ranking em tempo real.</div>
       </div>
-      <div class="competition-actions"><button class="primary" onclick="Competitions.render()">Competições e times</button><button class="chip-btn" onclick="challengeModal()">+ Desafio tradicional</button></div>
+      <div class="competition-actions"><button class="primary" onclick="Competitions.render()">Competições e times</button><button class="chip-btn" data-loading-label="Carregando formulário…" onclick="challengeModal()">+ Desafio tradicional</button></div>
     </div>
 
     ${pending.length ? `
@@ -3766,8 +3802,8 @@ function challengeCard(challenge, inviteMode = false) {
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         ${inviteMode ? `
-          <button class="primary" onclick="acceptChallenge('${challenge.id}')">Aceitar desafio</button>
-          <button class="chip-btn danger" onclick="rejectChallenge('${challenge.id}')">Recusar</button>
+          <button class="primary" data-loading-label="Aceitando desafio…" onclick="acceptChallenge('${challenge.id}')">Aceitar desafio</button>
+          <button class="chip-btn danger" data-loading-label="Recusando convite…" onclick="rejectChallenge('${challenge.id}')">Recusar</button>
         ` : `
           <button class="chip-btn" onclick="viewChallenge('${challenge.id}')">Ver ranking</button>
           ${canUpdate ? `<button class="chip-btn good" onclick="challengeProgressModal('${challenge.id}')">Atualizar progresso</button>` : ""}
@@ -3783,6 +3819,14 @@ async function challengeModal(editId = null) {
   const challenge = editId ? ensureChallengesArray().find(c => c.id === editId) : null;
   let friends = [];
 
+  openModal(
+    editId ? "Editar desafio" : "Novo desafio",
+    mlLoadingPanel(
+      editId ? "Carregando o desafio…" : "Carregando seus amigos…",
+      editId ? "Preparando os dados para edição." : "Preparando o formulário de convite."
+    )
+  );
+
   if (isLogged()) {
     const response = await api("listFriends");
     if (response?.ok) {
@@ -3790,6 +3834,7 @@ async function challengeModal(editId = null) {
     } else {
       const error = String(response?.error || "");
       if (/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)) {
+        closeModal();
         toast(await challengeSessionMessage(error));
         return;
       }
@@ -3832,7 +3877,7 @@ async function challengeModal(editId = null) {
       }).join("") : `<div class="muted" style="padding:12px 0">Adicione amigos em Pessoas para criar desafios com eles.</div>`}
     </div>
 
-    <button class="primary" style="margin-top:16px" onclick="saveChallenge('${editId || ""}')">${editId ? "Salvar alterações" : "Criar e convidar"}</button>
+    <button class="primary" style="margin-top:16px" data-loading-label="${editId ? "Salvando desafio…" : "Criando desafio…"}" onclick="saveChallenge('${editId || ""}')">${editId ? "Salvar alterações" : "Criar e convidar"}</button>
   `);
 }
 
@@ -3963,7 +4008,7 @@ function challengeProgressModal(id) {
     </div>
     <div class="field"><label>Seu progresso atual</label><input id="challengeProgressValue" type="number" step="0.1" min="0" value="${suggested ?? participant?.progress ?? 0}"></div>
     ${suggested != null ? `<div class="muted" style="margin:8px 0 14px">Valor sugerido automaticamente com base nos seus dados do MetaLife.</div>` : ""}
-    <button class="primary" onclick="updateChallengeProgress('${id}')">Salvar progresso</button>
+    <button class="primary" data-loading-label="Salvando progresso…" onclick="updateChallengeProgress('${id}')">Salvar progresso</button>
   `);
 }
 

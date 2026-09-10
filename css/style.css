@@ -175,6 +175,8 @@
 @keyframes login-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.login-loading-spinner{animation:none}}
 
+button{transition:transform .16s ease,box-shadow .16s ease,opacity .16s ease}button:active:not(:disabled){transform:translateY(1px) scale(.985)}button[aria-busy="true"]{cursor:wait;opacity:.88}.button-loading-spinner{display:inline-block;width:15px;height:15px;margin-right:8px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:button-loading-spin .7s linear infinite}.action-loading{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--muted)}.action-loading strong{color:var(--text);font-size:16px}.action-loading-spinner{width:38px;height:38px;border:4px solid #e0e7ff;border-top-color:var(--brand);border-radius:50%;animation:button-loading-spin .8s linear infinite}@keyframes button-loading-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.button-loading-spinner,.action-loading-spinner{animation:none}}
+
 /* Mobile: lista e conversa em telas separadas, respeitando teclado e áreas seguras. */
 .chat-mobile-back{display:none}
 @media(max-width:760px){

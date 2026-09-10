@@ -16,6 +16,21 @@ window.API = {
     const controller = new AbortController();
     const mutation = /^(save|delete|update|create|send|invite|accept|reject|cancel|leave|register|unregister)/.test(action);
     const timer = setTimeout(() => controller.abort(), mutation ? 45000 : 20000);
+    const recentAction = window.mlLastActionButton;
+    const activeButton = recentAction && Date.now() - recentAction.at < 2500
+      ? recentAction.button
+      : null;
+    const labels = {
+      create: "Criando…", save: "Salvando…", update: "Atualizando…",
+      send: "Enviando…", invite: "Enviando convite…", accept: "Aceitando…",
+      reject: "Recusando…", delete: "Excluindo…", leave: "Saindo…",
+      register: "Criando conta…", unregister: "Desativando…"
+    };
+    const prefix = Object.keys(labels).find(key => action.startsWith(key));
+    const finishButtonLoading = window.mlBeginButtonLoading?.(
+      activeButton,
+      activeButton?.dataset?.loadingLabel || labels[prefix] || "Carregando…"
+    ) || (() => {});
     try {
       const response = await fetch(CONFIG.API_URL, {
         method: "POST",
@@ -29,6 +44,6 @@ window.API = {
       catch { return { ok:false, offline:true, error:"Resposta inválida da API" }; }
     } catch (error) {
       return { ok:false, offline:true, error:error.name === "AbortError" ? "Tempo limite da API excedido" : error.message };
-    } finally { clearTimeout(timer); }
+    } finally { clearTimeout(timer); finishButtonLoading(); }
   }
 };
