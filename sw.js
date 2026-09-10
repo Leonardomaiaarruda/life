@@ -1,8 +1,8 @@
-/* MetaLife V20 — cache apenas de arquivos estáticos; dados pessoais continuam fora do Cache Storage. */
+/* MetaLife V20 Bloco 1 — cache de arquivos estáticos; dados pessoais ficam fora do Cache Storage. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v20-1';
+const STATIC_CACHE = 'metalife-static-v20-block1-2';
 const STATIC_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/v13.css', './css/mobile-nav.css', './css/v14.css',
@@ -12,7 +12,7 @@ const STATIC_ASSETS = [
   './js/pwa.js', './js/app.js', './js/social.js', './js/competitions.js', './js/community.js',
   './js/health-import.js', './js/progress.js', './js/v13.js', './js/mobile-nav.js',
   './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js', './js/v18.js', './js/v19.js',
-  './js/v20.js', './js/v20-images.js',
+  './js/v20.js', './js/v20-images.js', './js/v20-stage1.js',
   './assets/v20/legs-sprite.webp',
   './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
   './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg',
