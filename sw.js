@@ -1,18 +1,18 @@
-/* MetaLife V20 Bloco 2 — cache de arquivos estáticos; dados pessoais ficam fora do Cache Storage. */
+/* MetaLife V20 Bloco 3 — cache de arquivos estáticos; dados pessoais ficam fora do Cache Storage. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v20-block2-1';
+const STATIC_CACHE = 'metalife-static-v20-block3-1';
 const STATIC_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/v13.css', './css/mobile-nav.css', './css/v14.css',
-  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css',
+  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css', './css/v20-stage3.css',
   './css/social.css', './css/competitions.css', './css/community.css',
   './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
   './js/pwa.js', './js/app.js', './js/social.js', './js/competitions.js', './js/community.js',
   './js/health-import.js', './js/progress.js', './js/v13.js', './js/mobile-nav.js',
   './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js', './js/v18.js', './js/v19.js',
-  './js/v20.js', './js/v20-images.js', './js/v20-stage2.js',
+  './js/v20.js', './js/v20-images.js', './js/v20-stage2.js', './js/v20-stage3.js',
   './assets/v20/legs-sprite.webp',
   './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
   './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg',
