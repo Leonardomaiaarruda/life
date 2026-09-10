@@ -3768,7 +3768,15 @@ async function challengeModal(editId = null) {
 
   if (isLogged()) {
     const response = await api("listFriends");
-    if (response?.ok) friends = response.friends || response.items || [];
+    if (response?.ok) {
+      friends = response.friends || response.items || [];
+    } else {
+      const error = String(response?.error || "");
+      if (/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)) {
+        toast("O servidor não reconheceu seu login. Atualize o Code.gs, implante uma nova versão e entre novamente.");
+        return;
+      }
+    }
   }
 
   if (!friends.length) {
@@ -3879,7 +3887,7 @@ async function saveChallenge(editId = "") {
     if (!response?.ok) {
       const error = String(response?.error || "");
       toast(/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)
-        ? "Sua sessão expirou. Saia do MetaLife, entre novamente e crie o desafio."
+        ? "O servidor não reconheceu seu login. Atualize o Code.gs, implante uma nova versão e entre novamente."
         : error || "Não foi possível salvar o desafio.");
       return;
     }
