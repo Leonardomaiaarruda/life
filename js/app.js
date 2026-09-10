@@ -347,6 +347,7 @@ document.addEventListener("click", event => {
 });
 
 function show(page) {
+  window.Community?.stopChat();
   document.body.classList.remove("mobile-chat-open");
   if (currentPage === "Chats" && page !== "Chats" && typeof mlStopChatPolling === "function") {
     mlStopChatPolling();
@@ -4114,7 +4115,7 @@ async function renderPeople() {
               <b>${escapeHtml(friend.name || "Amigo")}</b>
               <div class="muted">Nível ${Number(friend.level || 1)} · ${Number(friend.xp || 0)} XP · 🔥 ${Number(friend.streak || 0)} dias</div>
             </div>
-            <button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>
+            <button class="chip-btn" onclick="Community.profile('${friend.id}')">Perfil</button> <button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>
           </div>
         `).join("") : `<div class="muted">Você ainda não adicionou nenhum amigo.</div>`}
       </div>
@@ -4199,7 +4200,7 @@ function renderPeopleLocal() {
                 <div class="muted">🔥 ${Number(friend.streak || 0)} dias de sequência</div>
               </div>
               ${friend.status === "friend"
-                ? `<button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>`
+                ? `<button class="chip-btn" onclick="Community.profile('${friend.id}')">Perfil</button> <button class="chip-btn" onclick="openChat('${friend.id}')">Conversar</button>`
                 : `<button class="chip-btn good" onclick="invite('${friend.id}')">Convidar</button>`}
             </div>
           `).join("")
@@ -4976,6 +4977,7 @@ $("#quickAddBtn").onclick =
 $("#logoutBtn").onclick =
   async () => {
     try { await window.mlPwaDisconnect?.(); } catch (_) { toast("Não foi possível cancelar as notificações. Tente sair novamente com internet."); return; }
+    window.Community?.stopChat();
     window.mlPwaClear?.();
     document.body.classList.remove("mobile-chat-open");
     mlStopMessageNotifications();

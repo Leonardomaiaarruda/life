@@ -4,6 +4,7 @@ window.Social = (() => {
   const icons={workout:'🏋',run:'🏃',diet:'🥗',habit:'🔥',weight:'⚖',goal:'🎯',weekly:'📅'};
   const reactions={fire:'🔥',strength:'💪',clap:'👏',heart:'❤️'};
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  let selectedGroup='';
   let tab='feed',filter='',items=[],next=null,epoch=0,busy=false,composeId='',photo='',photoBusy=false;
   const user=()=>String(localStorage.ml_user_id||'');
   const active=()=>currentPage==='Comunidade';
@@ -18,7 +19,7 @@ window.Social = (() => {
   function shell() {
     return `<div class="social-page"><header class="social-heading"><div><div class="eyebrow">EVOLUÇÃO EM COMPANHIA</div><h2>Um passo de cada vez.<br>Melhor com amigos.</h2><p>Compartilhe conquistas e incentive quem está ao seu lado.</p></div><button class="primary" data-social="compose">＋ Fazer check-in</button></header>
       <nav class="social-tabs" aria-label="Comunidade">${[['feed','Feed'],['mine','Meus check-ins'],['ranking','Ranking'],['profile','Meu perfil']].map(([id,label])=>`<button class="chip-btn ${tab===id?'selected':''}" aria-pressed="${tab===id}" data-social="tab" data-tab="${id}">${label}</button>`).join('')}<button class="chip-btn" data-social="friends">Amigos</button></nav>
-      <div id="socialBody" aria-live="polite"></div></div>`;
+      <div class="social-tabs"><button class="chip-btn" data-social="clubs">Grupos e clubes</button><button class="chip-btn" data-social="fullProfile">Perfil completo</button><button class="chip-btn" data-social="health">Atividades de dispositivos</button><button class="chip-btn" data-social="unified">Meu progresso completo</button></div><div id="socialBody" aria-live="polite"></div></div>`;
   }
   async function render() {
     const run=++epoch;busy=false;items=[];next=null;
@@ -41,7 +42,7 @@ window.Social = (() => {
     finally{if(run===epoch)busy=false;}
   }
   function card(post) {
-    return `<article class="social-post" data-post="${esc(post.id)}"><header><div class="social-avatar" aria-hidden="true">${esc((post.name||'U').slice(0,1))}</div><div class="social-author"><strong>${esc(post.name)}</strong><small>${esc(new Date(post.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))} · ${post.visibility==='private'?'🔒 Só eu':'Amigos'}</small></div><span class="social-xp">+${Number(post.xp)||0} XP</span></header>
+    return `<article class="social-post" data-post="${esc(post.id)}"><header><div class="social-avatar" aria-hidden="true">${esc((post.name||'U').slice(0,1))}</div><div class="social-author"><strong>${esc(post.name)}</strong><small>${esc(new Date(post.created_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))} · ${post.visibility==='private'?'🔒 Só eu':post.visibility==='groups'?'Grupo':'Amigos'}</small></div><span class="social-xp">+${Number(post.xp)||0} XP</span></header>
       <div class="social-category">${icons[post.category]||'◉'} ${esc(labels[post.category]||post.category)}</div><h3>${esc(post.title)}</h3>${post.note?`<p class="social-note">${esc(post.note)}</p>`:''}<div class="social-metrics">${post.duration?`<span>${Number(post.duration)} min</span>`:''}${post.distance?`<span>${Number(post.distance)} km</span>`:''}${post.bonus?`<span>+${Number(post.bonus)} XP por sequência</span>`:''}</div>
       ${post.has_photo?`<button class="social-photo-load" data-social="photo" data-id="${esc(post.id)}">▧ Ver foto do check-in</button>`:''}
       <footer><div class="social-reactions">${Object.entries(reactions).map(([kind,icon])=>`<button aria-label="${{fire:'Fogo',strength:'Força',clap:'Aplausos',heart:'Coração'}[kind]}" aria-pressed="${post.my_reaction===kind}" class="${post.my_reaction===kind?'selected':''}" data-social="react" data-id="${esc(post.id)}" data-kind="${kind}">${icon} ${Number(post.reactions?.[kind])||0}</button>`).join('')}</div><button class="chip-btn" data-social="comments" data-id="${esc(post.id)}">${Number(post.comment_count)||0} comentários</button>${post.user_id===user()?`<button class="social-delete" data-social="delete" data-id="${esc(post.id)}">Excluir</button>`:''}</footer></article>`;
@@ -55,10 +56,17 @@ window.Social = (() => {
       else {const p=result.profile;host.innerHTML=`<section class="social-profile"><div class="social-avatar large">${esc((p.name||'U').slice(0,1))}</div><h2>${esc(p.name)}</h2><span class="pill">${esc(p.level)}</span><div class="social-stat-grid"><div><b>${Number(p.xp)}</b><span>XP social</span></div><div><b>${Number(p.streak)}</b><span>dias em sequência</span></div><div><b>${Number(p.workouts)}</b><span>treinos compartilhados</span></div><div><b>${Number(p.activities)}</b><span>check-ins compartilhados</span></div></div><h3>Consistência vale mais que quantidade</h3><p>Treino e corrida: 30 XP. Dieta, peso e meta: 10 XP. Hábito: 5 XP. Revisão semanal: 40 XP, uma vez a cada 7 dias.</p><p>Uma pontuação por categoria ao dia, até 100 XP diários. A cada 7 dias seguidos, bônus de 50 XP. Check-ins privados não pontuam. Ao excluir uma publicação, seus pontos saem do perfil, mas o limite daquele dia permanece consumido.</p><small>O XP social é separado do XP pessoal já existente no MetaLife. Fotos são registros compartilhados, não validação automática da atividade.</small></section>`;}
     }catch(error){if(run===epoch&&active())errorAt(host,error);}
   }
-  function compose() {
+  function compose(group='') {
+    selectedGroup=typeof group==='string'?group:'';
     if(!localStorage.ml_token){toast('Entre na conta para publicar.');return;}
     composeId=crypto.randomUUID();photo='';photoBusy=false;
-    openModal('Compartilhar um check-in',`<form id="socialCompose"><div class="form-grid"><div class="field"><label for="socialCategory">Atividade</label><select id="socialCategory">${Object.entries(labels).map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></div><div class="field"><label for="socialVisibility">Quem pode ver</label><select id="socialVisibility"><option value="private">Só eu (sem XP social)</option><option value="friends">Meus amigos</option></select></div></div><div class="field"><label for="socialTitle">O que você fez?</label><input id="socialTitle" required maxlength="100" placeholder="Ex.: concluí meu treino de hoje"></div><div class="field"><label for="socialNote">Como foi? (opcional)</label><textarea id="socialNote" maxlength="1000" rows="3" placeholder="Uma conquista, uma dificuldade ou algo que aprendeu"></textarea></div><div class="form-grid"><div class="field"><label for="socialDuration">Duração em minutos (opcional)</label><input id="socialDuration" type="number" min="0" max="1440" step="1"></div><div class="field"><label for="socialDistance">Distância em km (opcional)</label><input id="socialDistance" type="number" min="0" max="500" step="0.01"></div></div><div class="field"><label for="socialPhoto">Foto opcional</label><input id="socialPhoto" type="file" accept="image/jpeg,image/png,image/webp"><small>A foto será reduzida para economizar dados. O original não é enviado.</small><img id="socialPreview" class="social-preview" hidden alt="Prévia da foto"><button type="button" class="chip-btn" data-social="removePhoto">Remover foto</button></div><p id="socialComposeStatus" role="status">O check-in registra a data de hoje. Nada dos seus outros registros será publicado.</p><button class="primary" type="submit">Salvar check-in</button></form>`);
+    openModal('Compartilhar um check-in',`<form id="socialCompose"><div class="field"><label for="socialHealthSource">Origem da atividade</label><select id="socialHealthSource"><option value="">Check-in manual</option></select><small id="socialHealthHint">Você pode usar uma atividade importada de hoje.</small></div><div class="form-grid"><div class="field"><label for="socialCategory">Atividade</label><select id="socialCategory">${Object.entries(labels).map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></div><div class="field"><label for="socialVisibility">Quem pode ver</label><select id="socialVisibility"><option value="private">Só eu (sem XP social)</option><option value="friends">Meus amigos</option>${selectedGroup?'<option value="groups" selected>Somente este grupo</option>':''}</select></div></div><div class="field"><label for="socialTitle">O que você fez?</label><input id="socialTitle" required maxlength="100" placeholder="Ex.: concluí meu treino de hoje"></div><div class="field"><label for="socialNote">Como foi? (opcional)</label><textarea id="socialNote" maxlength="1000" rows="3" placeholder="Uma conquista, uma dificuldade ou algo que aprendeu"></textarea></div><div class="form-grid"><div class="field"><label for="socialDuration">Duração em minutos (opcional)</label><input id="socialDuration" type="number" min="0" max="1440" step="1"></div><div class="field"><label for="socialDistance">Distância em km (opcional)</label><input id="socialDistance" type="number" min="0" max="500" step="0.01"></div></div><div class="field"><label for="socialPhoto">Foto opcional</label><input id="socialPhoto" type="file" accept="image/jpeg,image/png,image/webp"><small>A foto será reduzida para economizar dados. O original não é enviado.</small><img id="socialPreview" class="social-preview" hidden alt="Prévia da foto"><button type="button" class="chip-btn" data-social="removePhoto">Remover foto</button></div><p id="socialComposeStatus" role="status">O check-in registra a data de hoje. Nada dos seus outros registros será publicado.</p><button class="primary" type="submit">Salvar check-in</button></form>`);
+    loadHealthSources();
+  }
+  async function loadHealthSources() {
+    const select=document.getElementById('socialHealthSource');
+    try {const r=await request('listHealthRecords');if(!select?.isConnected)return;select._records=r.items.filter(v=>v.date===iso());select._records.forEach(v=>{const option=document.createElement('option');option.value=v.id;option.textContent=v.title+' · '+v.duration+' min';select.append(option);});}
+    catch(error){const hint=document.getElementById('socialHealthHint');if(select?.isConnected&&hint)hint.textContent='Importação indisponível. Você ainda pode fazer um check-in manual.';}
   }
   async function preparePhoto(file) {
     if(!file)return;
@@ -77,9 +85,9 @@ window.Social = (() => {
   async function submit(form) {
     if(form.dataset.busy==='true'||photoBusy)return;
     const status=document.getElementById('socialComposeStatus'),button=form.querySelector('[type="submit"]');
-    const payload={id:composeId,category:document.getElementById('socialCategory').value,visibility:document.getElementById('socialVisibility').value,title:document.getElementById('socialTitle').value,note:document.getElementById('socialNote').value,duration:Number(document.getElementById('socialDuration').value||0),distance:Number(document.getElementById('socialDistance').value||0),photo};
+    const payload={id:composeId,health_id:document.getElementById('socialHealthSource').value,groups:selectedGroup?[selectedGroup]:[],category:document.getElementById('socialCategory').value,visibility:document.getElementById('socialVisibility').value,title:document.getElementById('socialTitle').value,note:document.getElementById('socialNote').value,duration:Number(document.getElementById('socialDuration').value||0),distance:Number(document.getElementById('socialDistance').value||0),photo};
     form.dataset.busy='true';button.disabled=true;status.textContent='Salvando check-in…';
-    try {const result=await request('createSocialPost',{item:payload});if(form.isConnected)closeModal();toast(`Check-in salvo${result.xp?' · +'+result.xp+' XP social':''}.`);if(active())await render();}
+    try {const result=await request('createSocialPost',{item:payload});if(form.isConnected)closeModal();toast(`Check-in salvo${result.xp?' · +'+result.xp+' XP social':''}.`);if(active()&&!selectedGroup)await render();}
     catch(error){status.textContent=error.message;}
     finally{button.disabled=false;form.dataset.busy='false';}
   }
@@ -102,6 +110,7 @@ window.Social = (() => {
     }
   });
   document.addEventListener('change',async event=>{
+    if(event.target.id==='socialHealthSource'){const record=event.target._records?.find(v=>v.id===event.target.value);for(const id of ['socialCategory','socialDuration','socialDistance'])document.getElementById(id).disabled=!!record;if(record){document.getElementById('socialTitle').value=record.title;document.getElementById('socialCategory').value=record.category;document.getElementById('socialDuration').value=record.duration;document.getElementById('socialDistance').value=record.distance;}}
     if(event.target.id==='socialFilter'){filter=event.target.value;await render();}
     if(event.target.id==='socialPeriod'){window.mlSocialPeriod=event.target.value;await summary();}
     if(event.target.id==='socialPhoto'){
@@ -115,6 +124,10 @@ window.Social = (() => {
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-social]');if(!button)return;
     const action=button.dataset.social,id=button.dataset.id;
+    if(action==='clubs'){await Community.render();return;}
+    if(action==='fullProfile'){await Community.profile();return;}
+    if(action==='health'){await HealthImport.render();return;}
+    if(action==='unified'){await HealthImport.progress();return;}
     if(action==='compose'){compose();return;}
     if(action==='friends'){show('Pessoas');return;}
     if(action==='tab'){tab=button.dataset.tab;await render();return;}
