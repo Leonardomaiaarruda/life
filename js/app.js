@@ -93,7 +93,9 @@ async function api(action, data = {}) {
   const token = localStorage.getItem("ml_token");
   const response = await (window.Sync?.supports(action) && isLogged() ? Sync.save(action, data) : API.call(action, data));
   if (token !== localStorage.getItem("ml_token")) return { ok: false, stale: true };
-  if ((!response || !response.ok) && /^(save|delete|update|create|send|invite|accept|reject|cancel|leave)/.test(action)) {
+  const responseError = String(response?.error || "");
+  const sessionFailure = /sessão|sessao|token|identificar usuário|identificar usuario/i.test(responseError);
+  if ((!response || !response.ok) && !sessionFailure && /^(save|delete|update|create|send|invite|accept|reject|cancel|leave)/.test(action)) {
     let warning = document.querySelector("#saveWarning");
     if (!warning) {
       warning = document.createElement("div");
@@ -3570,6 +3572,9 @@ function renderInsights() {
 ========================= */
 
 function challengeUserId() {
+  const authenticatedId = localStorage.getItem("ml_user_id");
+  if (isLogged() && authenticatedId) return String(authenticatedId);
+
   return String(
     state.user?.id ||
     state.user?.user_id ||
@@ -3832,6 +3837,10 @@ async function saveChallenge(editId = "") {
   if (!editId && !friendIds.length) return toast("Selecione pelo menos um amigo.");
 
   const me = challengeUserId();
+  if (isLogged() && (!me || me === "LOCAL_USER")) {
+    toast("Não foi possível identificar sua conta. Saia e entre novamente antes de criar o desafio.");
+    return;
+  }
   const existing = editId ? ensureChallengesArray().find(c => c.id === editId) : null;
   const friendSource = [ ...(state.friends || []) ];
   const previousById = new Map((existing?.participants || []).map(p => [String(p.user_id), p]));
@@ -3868,7 +3877,10 @@ async function saveChallenge(editId = "") {
     const action = editId ? "updateChallenge" : "createChallenge";
     const response = await api(action, { item });
     if (!response?.ok) {
-      toast(response?.error || "Não foi possível salvar o desafio.");
+      const error = String(response?.error || "");
+      toast(/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)
+        ? "Sua sessão expirou. Saia do MetaLife, entre novamente e crie o desafio."
+        : error || "Não foi possível salvar o desafio.");
       return;
     }
     if (response.item) Object.assign(item, response.item);
