@@ -3587,6 +3587,23 @@ function challengeUserName() {
   return state.user?.name || state.user?.nome || "Você";
 }
 
+const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-2";
+
+async function challengeSessionMessage(error = "") {
+  try {
+    const status = await API.call("sessionStatus");
+    if (!status?.ok || status.build !== CHALLENGE_BACKEND_BUILD) {
+      return "O Apps Script publicado está desatualizado. Substitua o Code.gs e implante uma nova versão.";
+    }
+    if (!status.valid) {
+      return "A nova versão do servidor ainda não encontrou sua sessão. Saia, entre novamente e tente uma vez mais.";
+    }
+  } catch (_) {
+    return "Não foi possível conferir a versão do Apps Script. Verifique a implantação e tente novamente.";
+  }
+  return String(error || "Não foi possível carregar sua conta no servidor.");
+}
+
 function escapeHtml(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -3773,7 +3790,7 @@ async function challengeModal(editId = null) {
     } else {
       const error = String(response?.error || "");
       if (/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)) {
-        toast("O servidor não reconheceu seu login. Atualize o Code.gs, implante uma nova versão e entre novamente.");
+        toast(await challengeSessionMessage(error));
         return;
       }
     }
@@ -3887,7 +3904,7 @@ async function saveChallenge(editId = "") {
     if (!response?.ok) {
       const error = String(response?.error || "");
       toast(/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)
-        ? "O servidor não reconheceu seu login. Atualize o Code.gs, implante uma nova versão e entre novamente."
+        ? await challengeSessionMessage(error)
         : error || "Não foi possível salvar o desafio.");
       return;
     }
