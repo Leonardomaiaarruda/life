@@ -94,7 +94,7 @@ async function api(action, data = {}) {
   const response = await (window.Sync?.supports(action) && isLogged() ? Sync.save(action, data) : API.call(action, data));
   if (token !== localStorage.getItem("ml_token")) return { ok: false, stale: true };
   const responseError = String(response?.error || "");
-  const sessionFailure = /sessão|sessao|token|identificar usuário|identificar usuario/i.test(responseError);
+  const sessionFailure = /sessão|sessao|token|identificar (?:o )?usuário|identificar (?:o )?usuario/i.test(responseError);
   if ((!response || !response.ok) && !sessionFailure && /^(save|delete|update|create|send|invite|accept|reject|cancel|leave)/.test(action)) {
     let warning = document.querySelector("#saveWarning");
     if (!warning) {
@@ -3587,7 +3587,7 @@ function challengeUserName() {
   return state.user?.name || state.user?.nome || "Você";
 }
 
-const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-3";
+const CHALLENGE_BACKEND_BUILD = "2026.09.10-session-4";
 
 async function challengeSessionMessage(error = "") {
   try {
@@ -3899,11 +3899,20 @@ async function saveChallenge(editId = "") {
   };
 
   if (isLogged()) {
-    const action = editId ? "updateChallenge" : "createChallenge";
-    const response = await api(action, { item });
+    const action = editId ? "updateChallenge" : "createChallengeV4";
+    let response = await API.call(action, { item });
+
+    // O Apps Script pode concluir a gravação depois de o navegador encerrar
+    // a espera. Confirme pelo ID antes de informar que a criação falhou.
+    if (!response?.ok && !editId && response?.offline) {
+      const verification = await API.call("listChallenges");
+      const confirmed = (verification?.items || verification?.challenges || [])
+        .find(challenge => String(challenge.id) === String(item.id));
+      if (confirmed) response = { ok: true, item: confirmed, confirmed_after_wait: true };
+    }
     if (!response?.ok) {
       const error = String(response?.error || "");
-      toast(/sessão|sessao|token|identificar usuário|identificar usuario/i.test(error)
+      toast(/sessão|sessao|token|identificar (?:o )?usuário|identificar (?:o )?usuario/i.test(error)
         ? await challengeSessionMessage(error)
         : error || "Não foi possível salvar o desafio.");
       return;

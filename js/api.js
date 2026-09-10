@@ -14,7 +14,8 @@ window.API = {
       return { ok: false, offline: true, error: "API não configurada" };
     }
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
+    const mutation = /^(save|delete|update|create|send|invite|accept|reject|cancel|leave|register|unregister)/.test(action);
+    const timer = setTimeout(() => controller.abort(), mutation ? 45000 : 20000);
     try {
       const response = await fetch(CONFIG.API_URL, {
         method: "POST",
