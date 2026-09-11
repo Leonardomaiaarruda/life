@@ -1,11 +1,11 @@
-/* MetaLife V21.2.3 — cache auto-recuperável, Meu Dia moderno e nomes amigáveis. */
+/* MetaLife V22.0 — cache auto-recuperável com Desafios 2.0. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v21-startup-5';
+const STATIC_CACHE = 'metalife-static-v22-challenges-1';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './css/style.css', './css/modern-ui.css', './css/today-modern.css',
+  './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
   './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
   './js/pwa.js', './js/app.js', './js/today-modern.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js', './js/friendly-labels.js',
   './icons/icon-192.png', './icons/icon-512.png'
@@ -19,7 +19,7 @@ const OPTIONAL_ASSETS = [
   './js/social.js', './js/competitions.js', './js/community.js', './js/health-import.js', './js/progress.js',
   './js/v13.js', './js/mobile-nav.js', './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js',
   './js/v18.js', './js/v19.js', './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js',
-  './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js',
+  './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js', './js/challenges-v22.js',
   './assets/v20/legs-sprite.webp', './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
   './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg', './assets/v20/afundo.svg',
   './assets/v20/passada.svg', './assets/v20/stiff.svg', './assets/v20/levantamento-terra.svg',
