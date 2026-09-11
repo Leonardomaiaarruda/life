@@ -1,12 +1,12 @@
-/* MetaLife V21 — cache estático com orientação de treino por histórico. */
+/* MetaLife V21.1 — cache estático com interface moderna global. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v21-history-1';
+const STATIC_CACHE = 'metalife-static-v21-modern-1';
 const STATIC_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/v13.css', './css/mobile-nav.css', './css/v14.css',
-  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css', './css/v20-stage3.css', './css/v20-library-complete.css', './css/v21-history.css',
+  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css', './css/v20-stage3.css', './css/v20-library-complete.css', './css/v21-history.css', './css/modern-ui.css',
   './css/social.css', './css/competitions.css', './css/community.css',
   './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
   './js/pwa.js', './js/app.js', './js/login-stability.js', './js/social.js', './js/competitions.js', './js/community.js',
