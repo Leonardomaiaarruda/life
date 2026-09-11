@@ -1,12 +1,12 @@
-/* MetaLife V22.0 — cache auto-recuperável com Desafios 2.0. */
+/* MetaLife V22.1 — cache auto-recuperável com preparação Supabase. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v22-challenges-1';
+const STATIC_CACHE = 'metalife-static-v22-supabase-1';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
-  './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
+  './js/config.js', './js/supabase-adapter.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
   './js/pwa.js', './js/app.js', './js/today-modern.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js', './js/friendly-labels.js',
   './icons/icon-192.png', './icons/icon-512.png'
 ];
