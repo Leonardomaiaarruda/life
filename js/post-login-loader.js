@@ -1,4 +1,4 @@
-/* MetaLife V21.2 — carrega módulos pesados somente depois que o painel já abriu. */
+/* MetaLife V22 — carrega módulos pesados somente depois que o painel já abriu. */
 (() => {
   'use strict';
 
@@ -6,7 +6,7 @@
   let finished = false;
   const loadedScripts = new Map();
 
-  const VERSION = '20260911-startup2';
+  const VERSION = '20260911-v22-challenges1';
   const featureScripts = [
     'js/social.js',
     'js/competitions.js',
@@ -25,7 +25,8 @@
     'js/v20-library-complete.js',
     'js/v20-stage2.js',
     'js/v20-stage3.js',
-    'js/v21-history-guidance.js'
+    'js/v21-history-guidance.js',
+    'js/challenges-v22.js'
   ];
 
   function script(src, external = false) {
@@ -53,8 +54,6 @@
     started = true;
 
     window.mlFeaturesReady = (async () => {
-      /* Chart.js era carregado antes da própria tela de login. Agora só entra quando
-         o usuário já está no painel, evitando bloquear o primeiro paint. */
       try {
         if (!window.Chart) {
           await script('https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js', true);
@@ -66,7 +65,6 @@
       for (const src of featureScripts) {
         try {
           await script(src);
-          /* Cede um quadro entre os módulos maiores para manter toque/rolagem responsivos. */
           await new Promise(resolve => requestAnimationFrame(() => resolve()));
         } catch (error) {
           console.error('MetaLife: módulo opcional não carregou.', src, error);
@@ -90,7 +88,6 @@
 
   function scheduleStart() {
     if (started || !panelVisible()) return;
-    /* O shell recebe prioridade. Os extras começam logo depois sem segurar o login. */
     if ('requestIdleCallback' in window) requestIdleCallback(() => loadFeatures(), { timeout: 700 });
     else setTimeout(loadFeatures, 120);
   }
@@ -100,7 +97,7 @@
     const button = event.target.closest('[data-nav-page]');
     if (!button) return;
     const page = button.dataset.navPage;
-    if (!['Comunidade'].includes(page)) return;
+    if (!['Comunidade','Desafios'].includes(page)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     if (typeof window.toast === 'function') window.toast('Carregando este módulo…');
