@@ -1,0 +1,107 @@
+/* MetaLife V21.2.2 — Meu Dia / seção Hoje */
+.today-summary-grid{align-items:stretch}
+.today-score-card{display:flex!important;align-items:center;gap:18px;min-height:140px}
+.today-score-card .score-ring{flex:0 0 86px}
+.today-score-copy{display:grid;gap:5px;min-width:0}
+.today-score-copy>span{font-size:12px;color:var(--muted);font-weight:700}
+.today-score-copy>b{font-size:15px;color:var(--text-strong);line-height:1.35}
+
+.today-section{
+  margin-top:26px;
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:20px;
+  background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 96%,var(--brand-soft)));
+  box-shadow:var(--shadow-xs)
+}
+.today-section-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:16px}
+.today-section-head>div{min-width:0}
+.today-section-head h2{margin:3px 0 2px;font-size:24px;letter-spacing:-.035em}
+.today-section-head p{margin:0;color:var(--muted);font-size:13px}
+.today-add-button{flex:0 0 auto;min-height:43px!important;padding-inline:16px!important}
+.today-add-button span{font-size:17px;margin-right:2px}
+.today-list{display:grid;gap:10px}
+
+.today-item{
+  position:relative;
+  display:grid;
+  grid-template-columns:42px 44px minmax(0,1fr);
+  gap:12px;
+  align-items:center;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:var(--surface-2);
+  transition:transform var(--transition),border-color var(--transition),box-shadow var(--transition),background var(--transition)
+}
+.today-item:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--line) 62%,var(--brand));box-shadow:var(--shadow-sm);background:var(--surface)}
+.today-item.is-done{background:color-mix(in srgb,var(--success-soft) 42%,var(--surface));border-color:color-mix(in srgb,var(--success) 20%,var(--line))}
+.today-item.is-done .today-item-main h3{text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:color-mix(in srgb,var(--muted) 65%,transparent);color:var(--muted)}
+
+.today-check{
+  width:34px;height:34px;border-radius:11px;border:1.5px solid var(--line-strong);background:var(--surface);display:grid;place-items:center;padding:0;color:#fff;box-shadow:var(--shadow-xs)
+}
+.today-check:hover{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-ring)}
+.today-item.is-done .today-check{background:linear-gradient(135deg,var(--success),#16b884);border-color:transparent;box-shadow:0 7px 16px rgba(15,159,114,.18)}
+.today-check span{font-size:17px;font-weight:900;line-height:1}
+
+.today-category-icon{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:18px;background:var(--surface-3);border:1px solid var(--line)
+}
+.today-item[data-today-category="diet"] .today-category-icon{background:#edf9f0;border-color:#d5efdc}
+.today-item[data-today-category="workout"] .today-category-icon{background:#f1efff;border-color:#dfdafd}
+.today-item[data-today-category="cardio"] .today-category-icon{background:#fff0f0;border-color:#f7dcdc}
+.today-item[data-today-category="work"] .today-category-icon{background:#eef5ff;border-color:#d9e7fa}
+.today-item[data-today-category="tasks"] .today-category-icon{background:#fff7e9;border-color:#f5e6c9}
+
+.today-item-main{display:grid;gap:8px;min-width:0}
+.today-item-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.today-item-topline>div{min-width:0;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.today-item-main h3{margin:0;font-size:15px;letter-spacing:-.015em;overflow-wrap:anywhere}
+.today-category-label{font-size:10px;font-weight:800;letter-spacing:.055em;text-transform:uppercase;color:var(--muted)}
+.today-status{flex:0 0 auto;min-width:44px;text-align:center;padding:4px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:11px;font-weight:800}
+.today-status.done{background:var(--success-soft);color:var(--success)}
+.today-goal-link{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}
+.today-goal-link>span:first-child{color:var(--brand);font-weight:900}
+.today-progress-line{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:12px;align-items:center}
+.today-progress-track{height:7px;border-radius:999px;background:var(--surface-3);overflow:hidden;border:1px solid color-mix(in srgb,var(--line) 78%,transparent)}
+.today-progress-track>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .25s ease}
+.today-item.is-done .today-progress-track>span{background:linear-gradient(90deg,var(--success),#2cc796)}
+.today-value{display:flex;align-items:baseline;gap:4px;white-space:nowrap;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.today-value strong{font-size:13px;color:var(--text-strong)}
+
+.today-empty{display:flex;align-items:center;gap:14px;padding:18px;border:1px dashed var(--line-strong);border-radius:17px;background:var(--surface-2)}
+.today-empty-icon{width:42px;height:42px;flex:0 0 42px;border-radius:14px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand);font-size:20px;font-weight:900}
+.today-empty>div:nth-child(2){display:grid;gap:3px;flex:1;min-width:0}
+.today-empty b{font-size:14px;color:var(--text-strong)}
+.today-empty span{font-size:12px;color:var(--muted);line-height:1.4}
+
+html[data-theme="dark"] .today-item[data-today-category] .today-category-icon{background:var(--surface-3);border-color:var(--line)}
+
+@media(max-width:760px){
+  .today-score-card{min-height:auto;gap:13px}
+  .today-score-card .score-ring{flex-basis:72px;width:72px;height:72px}
+  .today-section{margin-top:18px;padding:15px;border-radius:20px}
+  .today-section-head{align-items:center;margin-bottom:13px}
+  .today-section-head h2{font-size:21px}
+  .today-section-head p{font-size:12px}
+  .today-add-button{min-height:40px!important;padding:8px 12px!important;font-size:13px}
+  .today-item{grid-template-columns:35px 38px minmax(0,1fr);gap:9px;padding:12px;border-radius:15px}
+  .today-check{width:31px;height:31px;border-radius:10px}
+  .today-category-icon{width:38px;height:38px;border-radius:11px;font-size:17px}
+  .today-progress-line{grid-template-columns:1fr;gap:5px}
+  .today-value{justify-content:flex-end}
+  .today-empty{display:grid;grid-template-columns:42px 1fr;padding:15px}
+  .today-empty .secondary{grid-column:1/-1;width:100%}
+}
+
+@media(max-width:420px){
+  .today-section-head{align-items:flex-start}
+  .today-section-head p{max-width:210px}
+  .today-item{grid-template-columns:31px minmax(0,1fr)}
+  .today-category-icon{display:none}
+  .today-item-topline{gap:7px}
+  .today-item-topline>div{gap:6px}
+  .today-item-main h3{font-size:14px}
+  .today-status{padding-inline:7px}
+}
