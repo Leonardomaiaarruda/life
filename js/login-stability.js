@@ -4,6 +4,30 @@
 
   let patched = false;
 
+  function installMutationObserverGuard() {
+    if (window.__mlMutationGuardInstalled || typeof window.MutationObserver !== 'function') return;
+    const NativeMutationObserver = window.MutationObserver;
+
+    class MetaLifeMutationObserver extends NativeMutationObserver {
+      constructor(callback) {
+        super((records, observer) => {
+          /* A V14 mantém um observador amplo no body e atualiza o próprio contador
+             de notificações dentro da callback. Essa alteração gera uma nova mutação
+             e pode virar um ciclo infinito. Mudanças internas do contador não precisam
+             disparar nenhum observador funcional do app, então são descartadas aqui. */
+          const meaningful = records.filter(record => {
+            const target = record.target?.nodeType === 1 ? record.target : record.target?.parentElement;
+            return !target?.closest?.('#v14Tools');
+          });
+          if (meaningful.length) callback(meaningful, observer);
+        });
+      }
+    }
+
+    window.MutationObserver = MetaLifeMutationObserver;
+    window.__mlMutationGuardInstalled = true;
+  }
+
   function patchBoot() {
     if (patched || typeof window.boot !== 'function') return;
     const originalBoot = window.boot;
@@ -37,18 +61,14 @@
   }
 
   function neutralizeV14ObserverLoop() {
-    /* v14.js observa alterações em todo o body e também atualiza este span.
-       Alterar textContent do próprio span dispara o mesmo observer novamente.
-       O contador continua disponível via aria-label do botão, sem manter o nó mutável. */
     const tools = document.getElementById('v14Tools');
     const bell = tools?.querySelector('.v14-bell');
     const badge = bell?.querySelector('span');
     if (!bell || !badge) return;
 
     const count = String(badge.textContent || '').trim();
-    if (count) bell.setAttribute('aria-label', `Notificações: ${count}`);
-    else bell.setAttribute('aria-label', 'Notificações');
-    badge.remove();
+    const label = count ? `Notificações: ${count}` : 'Notificações';
+    if (bell.getAttribute('aria-label') !== label) bell.setAttribute('aria-label', label);
   }
 
   function clearOrphanLoginOverlay() {
@@ -63,16 +83,21 @@
   }
 
   function install() {
+    installMutationObserverGuard();
     patchBoot();
     neutralizeV14ObserverLoop();
     clearOrphanLoginOverlay();
 
-    /* Roda poucas vezes durante o carregamento inicial; não cria um novo observer global. */
-    [0, 60, 250, 900, 1800].forEach(delay => setTimeout(() => {
+    [0, 60, 250, 900, 1800, 3200].forEach(delay => setTimeout(() => {
       patchBoot();
       neutralizeV14ObserverLoop();
     }, delay));
+
+    window.addEventListener('metalife-features-ready', neutralizeV14ObserverLoop);
   }
+
+  /* O guard precisa existir antes dos módulos carregados depois do login. */
+  installMutationObserverGuard();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', install, { once: true });
