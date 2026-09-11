@@ -1,8 +1,8 @@
-/* MetaLife V21.2 — cache auto-recuperável e shell de login leve. */
+/* MetaLife V21.2.1 — cache auto-recuperável e shell de login leve. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v21-startup-2';
+const STATIC_CACHE = 'metalife-static-v21-startup-3';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css',
@@ -31,7 +31,6 @@ self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(STATIC_CACHE);
     await Promise.allSettled(CORE_ASSETS.map(asset => cache.add(asset)));
-    /* Extras não podem atrasar a instalação do shell principal. */
     Promise.allSettled(OPTIONAL_ASSETS.map(asset => cache.add(asset))).catch(() => {});
     await self.skipWaiting();
   })());
@@ -58,7 +57,7 @@ async function networkFirst(request) {
 
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(request); /* query string faz parte da chave: versões novas não recebem JS antigo */
+  const cached = await cache.match(request);
   const network = fetch(request).then(async response => {
     if (response?.ok) await cache.put(request, response.clone());
     return response;
@@ -74,7 +73,6 @@ self.addEventListener('fetch', event => {
 
   const navigation = request.mode === 'navigate' || /\/index\.html$/i.test(url.pathname) || url.pathname.endsWith('/');
   if (navigation) {
-    /* HTML é sempre conferido na rede primeiro para não prender a guia normal numa versão antiga. */
     event.respondWith(networkFirst(request));
     return;
   }
