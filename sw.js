@@ -1,33 +1,38 @@
-/* MetaLife V21.1 — cache estático com interface moderna global. */
+/* MetaLife V21.2 — cache auto-recuperável e shell de login leve. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v21-modern-1';
-const STATIC_ASSETS = [
+const STATIC_CACHE = 'metalife-static-v21-startup-2';
+const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './css/style.css', './css/v13.css', './css/mobile-nav.css', './css/v14.css',
-  './css/v15-v16.css', './css/v17-v18.css', './css/v19.css', './css/v20.css', './css/v20-stage3.css', './css/v20-library-complete.css', './css/v21-history.css', './css/modern-ui.css',
-  './css/social.css', './css/competitions.css', './css/community.css',
+  './css/style.css', './css/modern-ui.css',
   './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
-  './js/pwa.js', './js/app.js', './js/login-stability.js', './js/social.js', './js/competitions.js', './js/community.js',
-  './js/health-import.js', './js/progress.js', './js/v13.js', './js/mobile-nav.js',
-  './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js', './js/v18.js', './js/v19.js',
-  './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js', './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js',
-  './assets/v20/legs-sprite.webp',
-  './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
-  './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg',
-  './assets/v20/afundo.svg', './assets/v20/passada.svg', './assets/v20/stiff.svg',
-  './assets/v20/levantamento-terra.svg', './assets/v20/agachamento-bulgaro.svg',
-  './assets/v20/agachamento-sumo.svg', './assets/v20/cadeira-abdutora.svg',
-  './assets/v20/elevacao-panturrilha.svg', './assets/v20/panturrilha-sentada.svg',
-  './assets/v20/panturrilha-no-leg-press.svg',
+  './js/pwa.js', './js/app.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js',
   './icons/icon-192.png', './icons/icon-512.png'
+];
+
+const OPTIONAL_ASSETS = [
+  './css/v13.css', './css/mobile-nav.css', './css/v14.css', './css/v15-v16.css',
+  './css/v17-v18.css', './css/v19.css', './css/v20.css', './css/v20-stage3.css',
+  './css/v20-library-complete.css', './css/v21-history.css', './css/social.css',
+  './css/competitions.css', './css/community.css',
+  './js/social.js', './js/competitions.js', './js/community.js', './js/health-import.js', './js/progress.js',
+  './js/v13.js', './js/mobile-nav.js', './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js',
+  './js/v18.js', './js/v19.js', './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js',
+  './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js',
+  './assets/v20/legs-sprite.webp', './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
+  './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg', './assets/v20/afundo.svg',
+  './assets/v20/passada.svg', './assets/v20/stiff.svg', './assets/v20/levantamento-terra.svg',
+  './assets/v20/agachamento-bulgaro.svg', './assets/v20/agachamento-sumo.svg', './assets/v20/cadeira-abdutora.svg',
+  './assets/v20/elevacao-panturrilha.svg', './assets/v20/panturrilha-sentada.svg', './assets/v20/panturrilha-no-leg-press.svg'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(STATIC_CACHE);
-    await Promise.allSettled(STATIC_ASSETS.map(asset => cache.add(asset)));
+    await Promise.allSettled(CORE_ASSETS.map(asset => cache.add(asset)));
+    /* Extras não podem atrasar a instalação do shell principal. */
+    Promise.allSettled(OPTIONAL_ASSETS.map(asset => cache.add(asset))).catch(() => {});
     await self.skipWaiting();
   })());
 });
@@ -35,27 +40,47 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k.startsWith('metalife-static-') && k !== STATIC_CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(key => key.startsWith('metalife-static-') && key !== STATIC_CACHE).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const response = await fetch(request, {cache:'no-store'});
+    if (response?.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (_) {
+    return await cache.match(request) || await cache.match(new URL(request.url).pathname.replace(self.location.pathname.replace(/sw\.js$/, ''), './')) || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await cache.match(request); /* query string faz parte da chave: versões novas não recebem JS antigo */
+  const network = fetch(request).then(async response => {
+    if (response?.ok) await cache.put(request, response.clone());
+    return response;
+  }).catch(() => null);
+  return cached || await network || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
+}
 
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  const isStatic = /\.(?:html|css|js|webmanifest|png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname) || url.pathname.endsWith('/');
-  if (!isStatic) return;
-  event.respondWith((async () => {
-    const cache = await caches.open(STATIC_CACHE);
-    const cached = await cache.match(request, {ignoreSearch:true});
-    const network = fetch(request).then(response => {
-      if (response && response.ok) cache.put(request, response.clone());
-      return response;
-    }).catch(() => null);
-    return cached || await network || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
-  })());
+
+  const navigation = request.mode === 'navigate' || /\/index\.html$/i.test(url.pathname) || url.pathname.endsWith('/');
+  if (navigation) {
+    /* HTML é sempre conferido na rede primeiro para não prender a guia normal numa versão antiga. */
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  const isStatic = /\.(?:css|js|webmanifest|png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname);
+  if (isStatic) event.respondWith(staleWhileRevalidate(request));
 });
 
 self.addEventListener('push', event => {
