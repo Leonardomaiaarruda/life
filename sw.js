@@ -1,13 +1,13 @@
-/* MetaLife V21.2.1 — cache auto-recuperável e shell de login leve. */
+/* MetaLife V21.2.2 — cache auto-recuperável e Meu Dia moderno. */
 self.window = self;
 importScripts('./js/config.js');
 
-const STATIC_CACHE = 'metalife-static-v21-startup-3';
+const STATIC_CACHE = 'metalife-static-v21-startup-4';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './css/style.css', './css/modern-ui.css',
+  './css/style.css', './css/modern-ui.css', './css/today-modern.css',
   './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
-  './js/pwa.js', './js/app.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js',
+  './js/pwa.js', './js/app.js', './js/today-modern.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js',
   './icons/icon-192.png', './icons/icon-512.png'
 ];
 
