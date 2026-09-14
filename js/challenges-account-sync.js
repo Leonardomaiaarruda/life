@@ -27,7 +27,8 @@
 
   async function sync(force = false) {
     if (running) return running;
-    if (unavailable || !window.API?.call || navigator.onLine === false || !window.isLogged?.()) return null;
+    const currentOwner = owner();
+    if (unavailable || currentOwner === 'demo' || !window.API?.call || navigator.onLine === false) return null;
     running = (async () => {
       try {
         const local = snapshot();
