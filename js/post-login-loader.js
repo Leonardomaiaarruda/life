@@ -1,4 +1,4 @@
-/* MetaLife V22 — carrega módulos pesados somente depois que o painel já abriu. */
+/* MetaLife V22.1.1 — carrega módulos pesados somente depois que o painel já abriu. */
 (() => {
   'use strict';
 
@@ -6,7 +6,7 @@
   let finished = false;
   const loadedScripts = new Map();
 
-  const VERSION = '20260911-v22-challenges1';
+  const VERSION = '20260914-v2211-stability1';
   const featureScripts = [
     'js/social.js',
     'js/competitions.js',
@@ -33,15 +33,20 @@
     const key = src;
     if (loadedScripts.has(key)) return loadedScripts.get(key);
     const promise = new Promise((resolve, reject) => {
-      if ([...document.scripts].some(node => node.src && node.src.includes(src))) {
-        resolve();
+      const existing = [...document.scripts].find(node => node.src && node.src.includes(src));
+      if (existing) {
+        if (existing.dataset.mlLoaded === '1' || existing.readyState === 'complete') resolve();
+        else {
+          existing.addEventListener('load', () => resolve(), {once:true});
+          existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)), {once:true});
+        }
         return;
       }
       const node = document.createElement('script');
       node.src = external ? src : `${src}?v=${VERSION}`;
       node.async = false;
       node.dataset.mlLazy = '1';
-      node.onload = () => resolve();
+      node.onload = () => { node.dataset.mlLoaded = '1'; resolve(); };
       node.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
       document.body.appendChild(node);
     });
@@ -54,12 +59,11 @@
     started = true;
 
     window.mlFeaturesReady = (async () => {
-      try {
-        if (!window.Chart) {
-          await script('https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js', true);
-        }
-      } catch (error) {
-        console.warn('MetaLife: gráficos serão carregados quando houver conexão.', error);
+      /* Chart.js não bloqueia os módulos internos. Se o CDN estiver lento ou fora,
+         o restante do MetaLife continua carregando normalmente. */
+      if (!window.Chart) {
+        script('https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js', true)
+          .catch(error => console.warn('MetaLife: gráficos externos indisponíveis no momento.', error));
       }
 
       for (const src of featureScripts) {
@@ -93,7 +97,7 @@
   }
 
   function protectFeatureNavigation(event) {
-    if (finished || !started) return;
+    if (finished) return;
     const button = event.target.closest('[data-nav-page]');
     if (!button) return;
     const page = button.dataset.navPage;
@@ -101,8 +105,9 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     if (typeof window.toast === 'function') window.toast('Carregando este módulo…');
-    Promise.resolve(window.mlFeaturesReady).then(() => {
-      if (typeof window.show === 'function') window.show(page);
+    loadFeatures().then(() => {
+      if (page === 'Desafios' && window.MetaLifeChallengesV22?.render) window.MetaLifeChallengesV22.render();
+      else if (typeof window.show === 'function') window.show(page);
     });
   }
 
