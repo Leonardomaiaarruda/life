@@ -6,14 +6,22 @@
 
   const NativeObserver = window.MutationObserver;
   if (typeof NativeObserver === 'function' && !window.__mlCompatObserverV221) {
+    const isProgressNode = node => node?.nodeType === 1 && (
+      node.id === 'v20Stage2Progress' || !!node.closest?.('#v20Stage2Progress')
+    );
+
     class CompatObserver extends NativeObserver {
       constructor(callback) {
         super((records, observer) => {
           const useful = records.filter(record => {
             const target = record.target?.nodeType === 1 ? record.target : record.target?.parentElement;
-            if (!target) return true;
-            if (target.closest?.('#v14Tools')) return false;
-            if (target.closest?.('#v20Stage2Progress')) return false;
+            if (target?.closest?.('#v14Tools')) return false;
+            if (target?.closest?.('#v20Stage2Progress')) return false;
+            if (record.type === 'childList') {
+              const changed = [...record.addedNodes, ...record.removedNodes]
+                .filter(node => node?.nodeType === 1);
+              if (changed.length && changed.every(isProgressNode)) return false;
+            }
             return true;
           });
           if (useful.length) callback(useful, observer);
