@@ -1,8 +1,8 @@
-/* MetaLife V22.1.2 — cache estável para Apps Script + Google Sheets. */
+/* MetaLife V22.2 — cache estável para Apps Script + Google Sheets. */
 self.window = self;
-importScripts('./js/config.js?v=20260914-v2212');
+importScripts('./js/config.js?v=20260914-v222');
 
-const STATIC_CACHE = 'metalife-static-v22-1-2';
+const STATIC_CACHE = 'metalife-static-v22-2';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
@@ -19,7 +19,7 @@ const OPTIONAL_ASSETS = [
   './css/competitions.css', './css/community.css',
   './js/social.js', './js/competitions.js', './js/community.js', './js/health-import.js', './js/progress.js',
   './js/v13.js', './js/mobile-nav.js', './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js',
-  './js/v18.js', './js/v19.js', './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js',
+  './js/v18.js', './js/v19.js', './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js', './js/workout-data.js',
   './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js', './js/challenges-v22.js',
   './assets/v20/legs-sprite.webp', './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
   './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg', './assets/v20/afundo.svg',
@@ -75,13 +75,8 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-
   const navigation = request.mode === 'navigate' || /\/index\.html$/i.test(url.pathname) || url.pathname.endsWith('/');
-  if (navigation) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
+  if (navigation) { event.respondWith(networkFirst(request)); return; }
   const isStatic = /\.(?:css|js|webmanifest|png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname);
   if (isStatic) event.respondWith(staleWhileRevalidate(request));
 });
