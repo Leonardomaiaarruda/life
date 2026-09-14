@@ -6,10 +6,11 @@
   const load=(n,f)=>{try{return JSON.parse(localStorage.getItem(key(n))||'null')??f}catch{return f}};
   const arr=v=>Array.isArray(v)?v:[];
   const num=v=>Number(v)||0;
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const fmt=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   let metric='load';
   let scheduled=false;
+  let lastProgressSignature='';
 
   function sessionRows(exerciseId){
     const lib=window.MetaLifeV20?.library||[];
@@ -66,13 +67,15 @@
     }
   }
 
-  function enhanceProgress(){
+  function enhanceProgress(force=false){
     const select=document.getElementById('v20HistoryExercise');
     const panel=document.getElementById('v20Panel');
-    if(!select||!panel)return;
-    const old=document.getElementById('v20Stage2Progress');
-    if(old)old.remove();
+    if(!select||!panel){lastProgressSignature='';return;}
+
     const rows=sessionRows(select.value);
+    const signature=JSON.stringify({exercise:select.value,metric,rows:rows.map(x=>[x.date,x.load,x.volume,x.oneRM,x.rpe,x.rir])});
+    if(!force&&signature===lastProgressSignature&&document.getElementById('v20Stage2Progress'))return;
+
     const bestLoad=rows.length?Math.max(...rows.map(x=>x.load)):0;
     const bestVolume=rows.length?Math.max(...rows.map(x=>x.volume)):0;
     const best1RM=rows.length?Math.max(...rows.map(x=>x.oneRM)):0;
@@ -80,12 +83,18 @@
     const avgRpe=rpeRows.length?rpeRows.reduce((a,x)=>a+x.rpe,0)/rpeRows.length:null;
     const avgRir=rirRows.length?rirRows.reduce((a,x)=>a+x.rir,0)/rirRows.length:null;
     const title={load:'Carga máxima',volume:'Volume da sessão',oneRM:'1RM estimado'}[metric];
-    const unit={load:'kg',volume:'kg',oneRM:'kg'}[metric];
-    const article=document.createElement('article');
-    article.id='v20Stage2Progress';
-    article.className='card v20-stage2-progress';
+
+    let article=document.getElementById('v20Stage2Progress');
+    if(!article){
+      article=document.createElement('article');
+      article.id='v20Stage2Progress';
+      article.className='card v20-stage2-progress';
+      panel.appendChild(article);
+    }
+
+    article.dataset.signature=signature;
     article.innerHTML=`<div class="v20-stage2-head"><div><div class="eyebrow">BLOCO 2</div><h3>Evolução avançada</h3></div><select id="v20Stage2Metric"><option value="load" ${metric==='load'?'selected':''}>Carga máxima</option><option value="volume" ${metric==='volume'?'selected':''}>Volume</option><option value="oneRM" ${metric==='oneRM'?'selected':''}>1RM estimado</option></select></div><div class="v20-stage2-kpis"><div><b>${bestLoad?bestLoad.toFixed(1):'—'}</b><span>melhor carga kg</span></div><div><b>${bestVolume?Math.round(bestVolume).toLocaleString('pt-BR'):'—'}</b><span>maior volume kg</span></div><div><b>${best1RM?best1RM.toFixed(1):'—'}</b><span>melhor 1RM estimado</span></div><div><b>${avgRpe!=null?avgRpe.toFixed(1):'—'}</b><span>RPE médio</span></div><div><b>${avgRir!=null?avgRir.toFixed(1):'—'}</b><span>RIR médio</span></div></div><h4>${title}</h4>${chart(rows,metric)}${rows.length?`<div class="v20-stage2-timeline">${rows.slice().reverse().slice(0,12).map(x=>`<div><b>${fmt(x.date)}</b><span>${x.load.toFixed(1)} kg · ${Math.round(x.volume).toLocaleString('pt-BR')} kg volume · 1RM ${x.oneRM.toFixed(1)} kg${x.rpe!=null?' · RPE '+x.rpe.toFixed(1):''}${x.rir!=null?' · RIR '+x.rir.toFixed(1):''}</span></div>`).join('')}</div>`:''}<p class="muted">O 1RM é apenas uma estimativa calculada a partir da carga e das repetições registradas.</p>`;
-    panel.appendChild(article);
+    lastProgressSignature=signature;
   }
 
   function apply(){
@@ -97,15 +106,22 @@
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(apply)}
 
   document.addEventListener('change',e=>{
-    if(e.target.id==='v20Stage2Metric'){metric=e.target.value;enhanceProgress();}
-    if(e.target.id==='v20HistoryExercise')setTimeout(enhanceProgress,0);
+    if(e.target.id==='v20Stage2Metric'){metric=e.target.value;enhanceProgress(true);}
+    if(e.target.id==='v20HistoryExercise'){lastProgressSignature='';setTimeout(()=>enhanceProgress(true),0);}
   });
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-v20-tab],[data-v20-next],[data-v20-prev],[data-v20-done],[data-v20-start],[data-v20-finish]'))setTimeout(schedule,0);
   });
-  window.addEventListener('metalife-data-saved',schedule);
+  window.addEventListener('metalife-data-saved',()=>{lastProgressSignature='';schedule();});
 
-  const observer=new MutationObserver(schedule);
-  function boot(){observer.observe(document.body,{childList:true,subtree:true});schedule();}
+  const observer=new MutationObserver(records=>{
+    if(records.every(record=>record.target?.closest?.('#v20Stage2Progress')))return;
+    schedule();
+  });
+  function boot(){
+    const content=document.getElementById('content');
+    if(content)observer.observe(content,{childList:true,subtree:true});
+    schedule();
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
