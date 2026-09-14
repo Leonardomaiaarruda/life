@@ -6,7 +6,7 @@
   const load=(n,f)=>{try{return JSON.parse(localStorage.getItem(key(n))||'null')??f}catch{return f}};
   const arr=v=>Array.isArray(v)?v:[];
   const num=v=>Number(v)||0;
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   let metric='load';
   let scheduled=false;
@@ -16,11 +16,11 @@
     const lib=window.MetaLifeV20?.library||[];
     const ex=lib.find(x=>String(x.id)===String(exerciseId));
     if(!ex)return[];
-    const sessions=window.MetaLifeV20?.sessions?.()||[];
+    const sessions=window.MetaLifeWorkoutData?.sessions?.()||window.MetaLifeV20?.sessions?.()||[];
     return arr(sessions).map(s=>{
-      const found=arr(s.exercises).find(e=>e.name===ex.name||e.id===ex.id);
+      const found=arr(s.exercises).find(e=>e.name===ex.name||e.id===ex.id||e.exerciseId===ex.id);
       if(!found)return null;
-      const sets=arr(found.sets).filter(x=>x.done);
+      const sets=arr(found.sets).filter(x=>x.done!==false);
       if(!sets.length)return null;
       const load=Math.max(...sets.map(x=>num(x.kg)));
       const volume=sets.reduce((a,x)=>a+num(x.kg)*num(x.reps),0);
@@ -97,12 +97,7 @@
     lastProgressSignature=signature;
   }
 
-  function apply(){
-    scheduled=false;
-    if(document.getElementById('pageTitle')?.textContent!=='Treino Inteligente')return;
-    enhanceSets();
-    enhanceProgress();
-  }
+  function apply(){scheduled=false;if(document.getElementById('pageTitle')?.textContent!=='Treino Inteligente')return;enhanceSets();enhanceProgress();}
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(apply)}
 
   document.addEventListener('change',e=>{
@@ -118,10 +113,6 @@
     if(records.every(record=>record.target?.closest?.('#v20Stage2Progress')))return;
     schedule();
   });
-  function boot(){
-    const content=document.getElementById('content');
-    if(content)observer.observe(content,{childList:true,subtree:true});
-    schedule();
-  }
+  function boot(){const content=document.getElementById('content');if(content)observer.observe(content,{childList:true,subtree:true});schedule();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
