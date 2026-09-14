@@ -1,4 +1,4 @@
-/* MetaLife V22.1.1 — carrega módulos pesados somente depois que o painel já abriu. */
+/* MetaLife V22.1.2 — carrega módulos pesados somente depois que o painel já abriu. */
 (() => {
   'use strict';
 
@@ -6,7 +6,7 @@
   let finished = false;
   const loadedScripts = new Map();
 
-  const VERSION = '20260914-v2211-stability1';
+  const VERSION = '20260914-v2212';
   const featureScripts = [
     'js/social.js',
     'js/competitions.js',
@@ -59,8 +59,6 @@
     started = true;
 
     window.mlFeaturesReady = (async () => {
-      /* Chart.js não bloqueia os módulos internos. Se o CDN estiver lento ou fora,
-         o restante do MetaLife continua carregando normalmente. */
       if (!window.Chart) {
         script('https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js', true)
           .catch(error => console.warn('MetaLife: gráficos externos indisponíveis no momento.', error));
