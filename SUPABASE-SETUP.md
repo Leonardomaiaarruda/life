@@ -2,33 +2,54 @@
 
 O repositório está preparado para uma migração gradual do Google Apps Script/Sheets para Supabase sem desligar o backend atual de uma vez.
 
-## O que já está preparado
+## Estrutura oficial no repositório
 
-- `supabase/schema.sql`: cria as tabelas iniciais, índices, trigger de perfil e políticas RLS por usuário.
+- `supabase/config.toml`: configuração do projeto para Supabase CLI/GitHub integration.
+- `supabase/migrations/20260914080000_initial_metalife_schema.sql`: migration inicial do banco.
 - `js/supabase-adapter.js`: cliente opcional do Supabase, autenticação e snapshot de migração.
-- `config.js`: terá campos públicos do Supabase, mas permanece com `SUPABASE_ENABLED: false` até você concluir os passos abaixo.
+- `js/config.js`: contém os campos públicos do Supabase, mas permanece com `SUPABASE_ENABLED: false` até a conexão ser concluída.
 - O Apps Script continua sendo o backend principal até a migração ser validada.
 
-## 1. Criar o projeto
+A fonte de verdade do banco agora é a pasta `supabase/migrations/`. Não use mais um `schema.sql` solto para alterações futuras. Cada mudança de banco deve virar uma nova migration versionada.
 
-Crie um projeto em Supabase e escolha uma região próxima dos usuários do MetaLife.
+## 1. Criar o projeto Supabase
+
+Crie um projeto no Supabase e escolha uma região adequada para os usuários do MetaLife.
 
 No painel do projeto, copie apenas:
 
 - Project URL
-- Publishable key (ou a chave pública equivalente do projeto)
+- Publishable key (ou chave pública equivalente)
 
 **Nunca coloque `service_role`, secret key ou senha do banco no GitHub Pages.** O frontend é público.
 
-## 2. Criar as tabelas
+## 2. Conectar o repositório GitHub
 
-Abra o SQL Editor do Supabase e execute todo o conteúdo de:
+Conecte o repositório:
 
-`supabase/schema.sql`
+`Leonardomaiaarruda/life`
 
-O script ativa Row Level Security (RLS). Cada usuário autenticado só pode acessar suas próprias linhas nas tabelas pessoais.
+Use a branch principal:
 
-## 3. Configurar o frontend
+`main`
+
+A integração deve considerar a pasta padrão:
+
+`supabase/`
+
+Quando novas migrations forem adicionadas em `supabase/migrations/`, elas poderão fazer parte do fluxo de deploy/versionamento do banco conforme a integração escolhida no Supabase.
+
+## 3. Aplicar a migration inicial
+
+A migration inicial está em:
+
+`supabase/migrations/20260914080000_initial_metalife_schema.sql`
+
+Ela cria as tabelas iniciais, índices, trigger de perfil e políticas RLS por usuário.
+
+Se a integração GitHub do seu projeto aplicar migrations automaticamente, use esse fluxo. Caso contrário, aplique a migration com Supabase CLI ou pelo fluxo de banco do próprio painel.
+
+## 4. Configurar o frontend
 
 No arquivo `js/config.js`, preencha:
 
@@ -41,7 +62,7 @@ DATA_PROVIDER: "hybrid"
 
 Durante a primeira fase use `DATA_PROVIDER: "hybrid"`. O Apps Script continua atendendo o sistema enquanto validamos o Supabase.
 
-## 4. Primeiro teste
+## 5. Primeiro teste
 
 Depois de configurar, abra o console do navegador e execute:
 
@@ -65,7 +86,7 @@ await MetaLifeSupabase.testDatabase()
 
 Se retornar `{ ok: true }`, autenticação + RLS + banco estão funcionando.
 
-## 5. Teste da ponte de dados
+## 6. Teste da ponte de dados
 
 Com um usuário Supabase autenticado:
 
