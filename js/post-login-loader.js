@@ -6,7 +6,7 @@
   let finished = false;
   const loadedScripts = new Map();
 
-  const VERSION = '20260914-v222-stability2';
+  const VERSION = '20260914-v222-stability3';
   const featureScripts = [
     'js/social.js',
     'js/competitions.js',
@@ -27,7 +27,8 @@
     'js/v20-stage2.js',
     'js/v20-stage3.js',
     'js/v21-history-guidance.js',
-    'js/challenges-v22.js'
+    'js/challenges-v22.js',
+    'js/challenges-account-sync.js'
   ];
 
   function script(src, external = false) {
