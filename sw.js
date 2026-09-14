@@ -1,13 +1,14 @@
-/* MetaLife V22.1 — cache auto-recuperável com preparação Supabase. */
+/* MetaLife V22.1.2 — cache estável para Apps Script + Google Sheets. */
 self.window = self;
-importScripts('./js/config.js');
+importScripts('./js/config.js?v=20260914-v2212');
 
-const STATIC_CACHE = 'metalife-static-v22-supabase-1';
+const STATIC_CACHE = 'metalife-static-v22-1-2';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
-  './js/config.js', './js/supabase-adapter.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
-  './js/pwa.js', './js/app.js', './js/today-modern.js', './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js', './js/friendly-labels.js',
+  './js/config.js', './js/api.js', './js/store.js', './js/sync.js', './js/fast-data.js',
+  './js/pwa.js', './js/app.js', './js/compatibility-guard-v221.js', './js/today-modern.js',
+  './js/session-recovery.js', './js/login-stability.js', './js/post-login-loader.js', './js/friendly-labels.js', './js/system-health.js',
   './icons/icon-192.png', './icons/icon-512.png'
 ];
 
@@ -44,6 +45,10 @@ self.addEventListener('activate', event => {
   })());
 });
 
+async function cacheMatch(cache, request) {
+  return await cache.match(request, { ignoreSearch: true });
+}
+
 async function networkFirst(request) {
   const cache = await caches.open(STATIC_CACHE);
   try {
@@ -51,14 +56,14 @@ async function networkFirst(request) {
     if (response?.ok) await cache.put(request, response.clone());
     return response;
   } catch (_) {
-    return await cache.match(request) || await cache.match(new URL(request.url).pathname.replace(self.location.pathname.replace(/sw\.js$/, ''), './')) || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
+    return await cacheMatch(cache, request) || await cache.match('./index.html', {ignoreSearch:true}) || new Response('Offline', {status:503, headers:{'Content-Type':'text/plain;charset=utf-8'}});
   }
 }
 
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request).then(async response => {
+  const cached = await cacheMatch(cache, request);
+  const network = fetch(request, {cache:'no-cache'}).then(async response => {
     if (response?.ok) await cache.put(request, response.clone());
     return response;
   }).catch(() => null);
