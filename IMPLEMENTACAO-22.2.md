@@ -1,0 +1,1 @@
+MetaLife 22.2 - consolidacao de estabilidade, treinos e sincronizacao.
