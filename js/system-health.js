@@ -1,4 +1,4 @@
-/* MetaLife V22.1.2 — diagnóstico interno de saúde do sistema. */
+/* MetaLife V22.2 — diagnóstico interno de saúde do sistema. */
 (() => {
   'use strict';
 
@@ -16,8 +16,15 @@
     let cacheNames = [];
     try { cacheNames = 'caches' in window ? await caches.keys() : []; } catch (_) {}
 
+    const challengeSync = (() => {
+      if (!window.MetaLifeChallengeSync) return 'não carregado';
+      try { return window.MetaLifeChallengeSync.available() ? 'disponível' : 'aguardando backend V22'; }
+      catch (_) { return 'erro'; }
+    })();
+
     const report = {
       version: window.CONFIG?.VERSION || 'desconhecida',
+      runtime: '22.2',
       provider: window.CONFIG?.DATA_PROVIDER || 'desconhecido',
       online: navigator.onLine !== false,
       logged: !!localStorage.getItem('ml_token'),
@@ -28,7 +35,9 @@
         social: !!window.Social,
         community: !!window.Community,
         challenges: !!window.MetaLifeChallengesV22,
+        challengeSync,
         workoutV20: !!window.MetaLifeV20,
+        workoutData: !!window.MetaLifeWorkoutData,
         workoutGuidance: !!window.MetaLifeV21
       },
       serviceWorker: sw,
@@ -46,12 +55,15 @@
     const report = await checks();
     const html = `
       <div class="health-grid">
-        <p><b>Versão:</b> ${report.version}</p>
+        <p><b>Versão configurada:</b> ${report.version}</p>
+        <p><b>Runtime:</b> ${report.runtime}</p>
         <p><b>Backend:</b> ${report.provider}</p>
         <p><b>Internet:</b> ${statusLabel(report.online)}</p>
         <p><b>Sessão:</b> ${statusLabel(report.logged && report.userIdPresent)}</p>
         <p><b>Fila de sincronização:</b> ${report.pendingSync ? 'Há itens pendentes' : 'Sem pendências'}</p>
         <p><b>Módulos carregados:</b> ${statusLabel(report.featuresReady)}</p>
+        <p><b>Histórico de treino unificado:</b> ${statusLabel(report.modules.workoutData)}</p>
+        <p><b>Sync de desafios:</b> ${report.modules.challengeSync}</p>
         <p><b>Service Worker:</b> ${statusLabel(report.serviceWorker.supported && report.serviceWorker.controlled)}</p>
         <p><b>Cache ativo:</b> ${report.caches.length ? report.caches.join(', ') : 'nenhum'}</p>
         <p><b>Supabase no runtime:</b> ${report.supabaseRuntime ? 'sim' : 'não'}</p>
