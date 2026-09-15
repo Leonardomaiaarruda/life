@@ -1,16 +1,15 @@
-/* MetaLife V22.3 — Saúde & Nutrição unificados no menu principal. */
+/* MetaLife V22.3.1 — Saúde & Nutrição como tela única. */
 (() => {
   'use strict';
 
   if (window.MetaLifeHealthNutrition) return;
 
   let active = false;
-  let currentTab = 'overview';
-  let scheduled = false;
-
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-  })[char]);
+  let area = 'training';
+  let trainingMode = 'smart';
+  let scheduledNav = false;
+  let scheduledFrame = false;
+  let contentObserver = null;
 
   function coreHealthButtons() {
     return [...document.querySelectorAll('#navGroups [data-nav-page]')]
@@ -18,10 +17,16 @@
   }
 
   function hideLegacyNavigation() {
-    const v15 = document.querySelector('[data-v15-nav]');
-    const v20 = document.querySelector('[data-v20-nav]');
-    [v15, v20, ...coreHealthButtons()].forEach(button => {
-      if (button) button.hidden = true;
+    const legacy = [
+      document.querySelector('[data-v15-nav]'),
+      document.querySelector('[data-v20-nav]'),
+      ...coreHealthButtons()
+    ].filter(Boolean);
+
+    legacy.forEach(button => {
+      button.hidden = true;
+      button.setAttribute('aria-hidden', 'true');
+      button.tabIndex = -1;
     });
 
     document.querySelectorAll('#navGroups .nav-group').forEach(section => {
@@ -50,11 +55,14 @@
         </button>`;
       const account = groups.querySelector('.nav-mobile-account');
       groups.insertBefore(section, account || null);
-      section.querySelector('[data-health-nutrition-nav]').addEventListener('click', () => render(currentTab));
+      section.querySelector('[data-health-nutrition-nav]').addEventListener('click', () => render(area));
     }
 
+    section.hidden = false;
     const button = section.querySelector('[data-health-nutrition-nav]');
     button?.classList.toggle('active', active);
+    button?.setAttribute('aria-current', active ? 'page' : 'false');
+
     if (active) {
       document.querySelectorAll('#mainNav .nav-button.active').forEach(item => {
         if (item !== button && !item.classList.contains('nav-more')) item.classList.remove('active');
@@ -62,130 +70,187 @@
     }
   }
 
-  function latestWeight() {
-    try {
-      const rows = Array.isArray(Store.load()?.weight) ? Store.load().weight.slice() : [];
-      rows.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-      const row = rows.at(-1);
-      return row ? Number(row.value ?? row.weight ?? 0) : 0;
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  function overview() {
-    const host = document.getElementById('content');
-    if (!host) return;
-    const plan = window.MetaLifeV20?.currentPlan?.();
-    const sessions = window.MetaLifeWorkoutData?.sessions?.() || window.MetaLifeV20?.sessions?.() || [];
-    const weight = latestWeight();
-    document.getElementById('pageTitle').textContent = 'Saúde & Nutrição';
-    host.innerHTML = `
-      ${tabs('overview')}
-      <section class="health-nutrition-overview">
-        <div class="section-head">
-          <div>
-            <h2>Saúde & Nutrição</h2>
-            <p class="muted">Treino inteligente, execução, alimentação e evolução em um único lugar.</p>
-          </div>
-        </div>
-        <div class="grid cols-3">
-          <article class="card">
-            <div class="eyebrow">TREINO INTELIGENTE</div>
-            <h3>${plan ? esc(plan.name || 'Plano ativo') : 'Crie seu plano'}</h3>
-            <p class="muted">${plan ? 'Seu plano inteligente está ativo e pode orientar o treino de hoje.' : 'Use objetivo, nível, frequência e disponibilidade para gerar um plano.'}</p>
-            <button class="primary" data-hn-tab="smart">${plan ? 'Abrir treino inteligente' : 'Gerar meu treino'}</button>
-          </article>
-          <article class="card">
-            <div class="eyebrow">TREINO & ALIMENTAÇÃO</div>
-            <h3>${sessions.length} treino${sessions.length === 1 ? '' : 's'} no histórico</h3>
-            <p class="muted">Execute fichas, registre refeições, acompanhe macros, água, alimentos e receitas.</p>
-            <button class="primary" data-hn-tab="fitness">Abrir treino & alimentação</button>
-          </article>
-          <article class="card">
-            <div class="eyebrow">PESO & PROGRESSO</div>
-            <h3>${weight ? `${weight.toLocaleString('pt-BR', {maximumFractionDigits:1})} kg` : 'Sem peso registrado'}</h3>
-            <p class="muted">Acompanhe peso, medidas e evolução corporal junto do seu plano.</p>
-            <button class="primary" data-hn-tab="weight">Abrir progresso</button>
-          </article>
-        </div>
-      </section>`;
-  }
-
-  function tabs(selected = currentTab) {
-    return `<nav class="v15-tabs health-nutrition-tabs" data-health-nutrition-tabs>
-      <button class="chip-btn ${selected === 'overview' ? 'selected' : ''}" data-hn-tab="overview">Visão geral</button>
-      <button class="chip-btn ${selected === 'smart' ? 'selected' : ''}" data-hn-tab="smart">Treino inteligente</button>
-      <button class="chip-btn ${selected === 'fitness' ? 'selected' : ''}" data-hn-tab="fitness">Treino & alimentação</button>
-      <button class="chip-btn ${selected === 'weight' ? 'selected' : ''}" data-hn-tab="weight">Peso & progresso</button>
+  function unifiedTabs() {
+    return `<nav class="v15-tabs health-nutrition-tabs" data-health-nutrition-tabs aria-label="Saúde e Nutrição">
+      <button type="button" class="chip-btn ${area === 'training' ? 'selected' : ''}" data-hn-area="training">Treino</button>
+      <button type="button" class="chip-btn ${area === 'nutrition' ? 'selected' : ''}" data-hn-area="nutrition">Alimentação</button>
+      <button type="button" class="chip-btn ${area === 'weight' ? 'selected' : ''}" data-hn-area="weight">Peso & Progresso</button>
     </nav>`;
   }
 
-  function prependTabs(selected) {
-    const host = document.getElementById('content');
-    if (!host) return;
-    host.querySelector('[data-health-nutrition-tabs]')?.remove();
-    host.insertAdjacentHTML('afterbegin', tabs(selected));
+  function trainingTabs() {
+    if (area !== 'training') return '';
+    return `<div class="health-nutrition-training-switch" data-health-training-switch style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px">
+      <button type="button" class="chip-btn ${trainingMode === 'smart' ? 'selected' : ''}" data-hn-training="smart">Treino Inteligente</button>
+      <button type="button" class="chip-btn ${trainingMode === 'execution' ? 'selected' : ''}" data-hn-training="execution">Execução, fichas e histórico</button>
+    </div>`;
   }
 
-  function render(tab = 'overview') {
-    active = true;
-    currentTab = tab;
-    installNav();
+  function frameHtml() {
+    return `<section data-health-nutrition-frame>
+      <div class="section-head" style="margin-top:0">
+        <div>
+          <div class="eyebrow">SAÚDE & NUTRIÇÃO</div>
+          <h2>${area === 'training' ? 'Treino' : area === 'nutrition' ? 'Alimentação' : 'Peso & Progresso'}</h2>
+          <p class="muted">${area === 'training'
+            ? 'O Treino Inteligente e a execução das fichas agora ficam dentro da mesma área.'
+            : area === 'nutrition'
+              ? 'Registro alimentar, macros, água, alimentos e receitas em uma única tela.'
+              : 'Acompanhe peso e evolução corporal junto do restante da sua saúde.'}</p>
+        </div>
+      </div>
+      ${unifiedTabs()}
+      ${trainingTabs()}
+    </section>`;
+  }
 
-    if (tab === 'smart') {
+  function ensureFrame() {
+    if (!active) return;
+    const host = document.getElementById('content');
+    const title = document.getElementById('pageTitle');
+    if (!host || !title) return;
+
+    if (title.textContent !== 'Saúde & Nutrição') title.textContent = 'Saúde & Nutrição';
+
+    let frame = host.querySelector('[data-health-nutrition-frame]');
+    if (!frame) {
+      host.insertAdjacentHTML('afterbegin', frameHtml());
+      frame = host.querySelector('[data-health-nutrition-frame]');
+    } else {
+      const expectedArea = frame.querySelector(`[data-hn-area="${area}"]`);
+      const expectedTraining = area !== 'training' || frame.querySelector(`[data-hn-training="${trainingMode}"]`);
+      if (!expectedArea || !expectedTraining) frame.outerHTML = frameHtml();
+      else {
+        frame.querySelectorAll('[data-hn-area]').forEach(button => button.classList.toggle('selected', button.dataset.hnArea === area));
+        frame.querySelectorAll('[data-hn-training]').forEach(button => button.classList.toggle('selected', button.dataset.hnTraining === trainingMode));
+      }
+    }
+
+    installNav();
+  }
+
+  function scheduleFrame() {
+    if (!active || scheduledFrame) return;
+    scheduledFrame = true;
+    requestAnimationFrame(() => {
+      scheduledFrame = false;
+      ensureFrame();
+    });
+  }
+
+  function observeContent() {
+    if (contentObserver) return;
+    const host = document.getElementById('content');
+    if (!host) return;
+    contentObserver = new MutationObserver(scheduleFrame);
+    contentObserver.observe(host, {childList:true, subtree:false});
+  }
+
+  function renderTraining() {
+    if (trainingMode === 'execution') {
+      window.MetaLifeV15?.render?.('home');
+    } else {
       const plan = window.MetaLifeV20?.currentPlan?.();
       window.MetaLifeV20?.render?.(plan ? 'today' : 'generator');
-      prependTabs('smart');
-      return;
     }
+    ensureFrame();
+  }
 
-    if (tab === 'fitness') {
-      window.MetaLifeV15?.render?.('home');
-      prependTabs('fitness');
-      return;
-    }
+  function renderNutrition() {
+    window.MetaLifeV15?.render?.('nutrition');
+    ensureFrame();
+  }
 
-    if (tab === 'weight') {
-      if (typeof window.renderWeight === 'function') window.renderWeight();
-      else if (typeof renderWeight === 'function') renderWeight();
-      document.getElementById('pageTitle').textContent = 'Peso & Progresso';
-      prependTabs('weight');
-      return;
-    }
+  function renderWeightArea() {
+    if (typeof window.renderWeight === 'function') window.renderWeight();
+    else if (typeof renderWeight === 'function') renderWeight();
+    ensureFrame();
+  }
 
-    overview();
+  function render(nextArea = 'training') {
+    active = true;
+    area = ['training', 'nutrition', 'weight'].includes(nextArea) ? nextArea : 'training';
+    installNav();
+    observeContent();
+
+    if (area === 'training') renderTraining();
+    else if (area === 'nutrition') renderNutrition();
+    else renderWeightArea();
   }
 
   function scheduleInstall() {
-    if (scheduled) return;
-    scheduled = true;
+    if (scheduledNav) return;
+    scheduledNav = true;
     requestAnimationFrame(() => {
-      scheduled = false;
+      scheduledNav = false;
       installNav();
+      if (active) ensureFrame();
     });
   }
 
   document.addEventListener('click', event => {
-    const tab = event.target.closest('[data-hn-tab]');
-    if (tab) {
+    const areaButton = event.target.closest('[data-hn-area]');
+    if (areaButton) {
       event.preventDefault();
-      render(tab.dataset.hnTab);
+      render(areaButton.dataset.hnArea);
+      return;
+    }
+
+    const trainingButton = event.target.closest('[data-hn-training]');
+    if (trainingButton) {
+      event.preventDefault();
+      trainingMode = trainingButton.dataset.hnTraining === 'execution' ? 'execution' : 'smart';
+      area = 'training';
+      renderTraining();
+      return;
+    }
+
+    const v15Tab = event.target.closest('[data-v15-tab]');
+    if (active && v15Tab) {
+      const tab = String(v15Tab.dataset.v15Tab || '');
+      if (['nutrition', 'foods', 'recipes', 'settings'].includes(tab)) area = 'nutrition';
+      else {
+        area = 'training';
+        trainingMode = 'execution';
+      }
+      scheduleFrame();
+      return;
+    }
+
+    const v20Tab = event.target.closest('[data-v20-tab]');
+    if (active && v20Tab) {
+      area = 'training';
+      trainingMode = 'smart';
+      scheduleFrame();
       return;
     }
 
     const other = event.target.closest('#mainNav [data-nav-page], #mainNav [data-v14-central], #mainNav [data-v16-nav], #mainNav [data-v17-nav], #mainNav [data-v18-nav], #mainNav [data-v19-nav], #mainNav [data-system-health]');
-    if (other) active = false;
+    if (other && !other.hidden) {
+      active = false;
+      installNav();
+    }
   }, true);
 
   function boot() {
     installNav();
+    observeContent();
     const nav = document.getElementById('mainNav');
     if (nav) new MutationObserver(scheduleInstall).observe(nav, {childList:true, subtree:true});
     window.addEventListener('metalife-features-ready', scheduleInstall);
   }
 
-  window.MetaLifeHealthNutrition = { render, installNav };
+  window.MetaLifeHealthNutrition = {
+    render,
+    installNav,
+    openTraining: mode => {
+      trainingMode = mode === 'execution' ? 'execution' : 'smart';
+      render('training');
+    },
+    openNutrition: () => render('nutrition'),
+    openWeight: () => render('weight')
+  };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true});
   else boot();
 })();
