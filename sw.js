@@ -1,8 +1,8 @@
-/* MetaLife V22.2 — cache estável para Apps Script + Google Sheets. */
+/* MetaLife V22.3 — cache estável para Apps Script + Google Sheets. */
 self.window = self;
-importScripts('./js/config.js?v=20260914-v222');
+importScripts('./js/config.js?v=20260915-v223');
 
-const STATIC_CACHE = 'metalife-static-v22-2';
+const STATIC_CACHE = 'metalife-static-v22-3';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
@@ -20,7 +20,7 @@ const OPTIONAL_ASSETS = [
   './js/social.js', './js/competitions.js', './js/community.js', './js/health-import.js', './js/progress.js',
   './js/v13.js', './js/mobile-nav.js', './js/v14.js', './js/v15.js', './js/v16.js', './js/v17.js',
   './js/v18.js', './js/v19.js', './js/v20.js', './js/v20-library-complete.js', './js/v20-images.js', './js/workout-data.js',
-  './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js', './js/challenges-v22.js', './js/challenges-account-sync.js',
+  './js/v20-stage2.js', './js/v20-stage3.js', './js/v21-history-guidance.js', './js/challenges-v22.js', './js/challenges-account-sync.js', './js/health-nutrition.js',
   './assets/v20/legs-sprite.webp', './assets/v20/agachamento-livre.svg', './assets/v20/leg-press-45.svg',
   './assets/v20/cadeira-extensora.svg', './assets/v20/cadeira-flexora.svg', './assets/v20/afundo.svg',
   './assets/v20/passada.svg', './assets/v20/stiff.svg', './assets/v20/levantamento-terra.svg',
