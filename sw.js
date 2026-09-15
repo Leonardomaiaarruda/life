@@ -1,8 +1,8 @@
-/* MetaLife V22.3 — cache estável para Apps Script + Google Sheets. */
+/* MetaLife V22.3.1 — cache estável para Apps Script + Google Sheets. */
 self.window = self;
-importScripts('./js/config.js?v=20260915-v223');
+importScripts('./js/config.js?v=20260915-v2231');
 
-const STATIC_CACHE = 'metalife-static-v22-3';
+const STATIC_CACHE = 'metalife-static-v22-3-1';
 const CORE_ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './css/style.css', './css/modern-ui.css', './css/today-modern.css', './css/challenges-v22.css',
