@@ -1,4 +1,4 @@
-/* MetaLife V22.2 — carrega módulos pesados somente depois que o painel já abriu. */
+/* MetaLife V22.3 — carrega módulos pesados somente depois que o painel já abriu. */
 (() => {
   'use strict';
 
@@ -6,7 +6,7 @@
   let finished = false;
   const loadedScripts = new Map();
 
-  const VERSION = '20260914-v222-stability3';
+  const VERSION = '20260915-v223-health1';
   const featureScripts = [
     'js/social.js',
     'js/competitions.js',
@@ -28,7 +28,8 @@
     'js/v20-stage3.js',
     'js/v21-history-guidance.js',
     'js/challenges-v22.js',
-    'js/challenges-account-sync.js'
+    'js/challenges-account-sync.js',
+    'js/health-nutrition.js'
   ];
 
   function script(src, external = false) {
